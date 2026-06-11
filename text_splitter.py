@@ -1,5 +1,4 @@
 text = open("input.txt", "r").read()
-
 def fixed_size(text,chunk_size,chunk_overlap):
     chunks = []
     i=0
@@ -9,11 +8,6 @@ def fixed_size(text,chunk_size,chunk_overlap):
         i=end-chunk_overlap
     return chunks
 
-#fixed size
-chunk=fixed_size(text,50,20);
-for i in range(0,len(chunk)):
-    print("chunk ",i,":",chunk[i])
-print("total chunks are",len(chunk))
     
 def sen_bound(text,chunk_size,overlap=1):
     chunks=[]
@@ -41,8 +35,19 @@ def sen_bound(text,chunk_size,overlap=1):
          chunks.append(" ".join(buffer))
     return chunks
 
- #sentence boundary   
-chunk=sen_bound(text,500)
-for i in range(0,len(chunk)):
-    print("chunk ",i,":",chunk[i])
-print("total chunks are",len(chunk))
+
+
+
+while 1:
+     print("Choose strategy: 1.fixed size 2.sentence boundary")
+     ch = int(input("enter: "))
+     if ch==1:
+        chunk=fixed_size(text,50,20)
+     elif ch==2:
+        chunk=sen_bound(text,500)
+     elif ch==-1:
+         break
+
+     for i in range(0,len(chunk)):
+        print("chunk ",i,":",chunk[i])
+     print("total chunks are",len(chunk))
