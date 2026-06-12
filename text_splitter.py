@@ -45,7 +45,7 @@ def merge(chunks,chunk_size,chunk_overlap):
     buffer=[]
     merged=[]
     for chunk in chunks:
-      if(len("".join(buffer+[chunk]))<=chunk_size):
+      if(len(" ".join(buffer+[chunk]))<=chunk_size):
          buffer.append(chunk)
       else:
          if buffer:
@@ -78,9 +78,9 @@ def rec_chunk(text,chunk_size,chunk_overlap,separator):
           
     return merge(final,chunk_size,chunk_overlap)
 
-chunk=rec_chunk(text,500,50,separator)
-print(chunk[0])
-
+chunk=rec_chunk(text,500,1,separator)
+for idx,c in enumerate(chunk):
+   print("chunk ",idx," value: ",c)
 
 # STRATEGRY : FIXED SIZE CHUNKING (NOT GOOD FOR RAG AS IT DOESNT RESPECT CONTEXT)
 
