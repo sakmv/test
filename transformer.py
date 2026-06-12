@@ -1,7 +1,14 @@
 from text_splitter import text_splitter
+from sentence_transformers import SentenceTransformer
 
-text = open("input.txt", "r").read()
+with open("input.txt", "r") as f:
+    text=f.read()
 
+#chunking
 splitter=text_splitter()
 chunks=splitter.rec_chunk(text,500,50)
-print(chunks[0])
+
+#embedding
+embed_model=SentenceTransformer("all-MiniLM-L6-v2")
+embed=embed_model.encode(chunks)
+
