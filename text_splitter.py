@@ -1,9 +1,10 @@
-#SENTENCE BOUNDARY CHUNKING FROM SCRATCH:
+
 class text_splitter:
-    def __init__(self, separator=["\n\n\n", "\n\n", "\n", ".", " "]):
+    def __init__(self, separator=["\n\n\n", "\n\n", "\n", ".", " ",""]):
         self.separator = separator
 
-    def sen_bound(self, text, chunk_size, sep, overlap=1):
+#SENTENCE BOUNDARY CHUNKING FROM SCRATCH:
+    def sen_bound(self, text, chunk_size, sep):
         chunks = []
         sen = []
         start = 0
@@ -12,10 +13,12 @@ class text_splitter:
         buffer = []
 
         while i < len(text):
-            if text[i] in sep:
-                sen.append(text[start:i+1].strip())
-                start = i + 1
-            i += 1
+            if [text[i:i+len(sep)]] == [sep]:
+                sen.append(text[start:i+len(sep)].strip())
+                start = i + len(sep)
+                i += len(sep)
+            else:
+                i += 1
 
         if start < len(text):
             sen.append(text[start:].strip())
@@ -25,7 +28,7 @@ class text_splitter:
                 buffer.append(sen[j])
             elif buffer:
                 chunks.append(" ".join(buffer))
-                buffer = buffer[-overlap:]
+                buffer=[]
                 buffer.append(sen[j])
             else:
                 chunks.append(sen[j])
@@ -36,7 +39,7 @@ class text_splitter:
 
         return chunks
 
-    def merge(self, chunks, chunk_size, chunk_overlap):
+    def merge(self, chunks, chunk_size):
         buffer = []
         merged = []
         for chunk in chunks:
@@ -45,34 +48,46 @@ class text_splitter:
             else:
                 if buffer:
                     merged.append(" ".join(buffer))
-                overlap = buffer[-chunk_overlap:] if chunk_overlap else []
-                if len(" ".join(overlap + [chunk])) <= chunk_size:
-                    buffer = overlap
-                else:
                     buffer = []
-                buffer.append(chunk)
+                else:
+                    merged.append(chunk)
         if buffer:
             merged.append(" ".join(buffer))
         return merged
-
-    def rec_chunk(self, text, chunk_size, chunk_overlap, separator=None):
+    def overlap(self,chunks,chunk_size,chunk_overlap):
+        if chunk_overlap >= chunk_size:
+            print("error overlap too big")
+            return chunks
+        if chunk_overlap==0:
+            return chunks
+        chunkf=[]
+        chunkf.append(chunks[0])
+        for i in range(1,len(chunks)):
+            overlap_part=chunks[i-1][-(chunk_size-len(chunks[i])):]
+            fs=overlap_part.find(" ")
+            if fs!=-1:
+                overlap_part=overlap_part[fs+1:]
+            chunkf.append(overlap_part.strip()+" "+chunks[i])
+        return chunkf
+    def rec_chunk(self, text, chunk_size, chunk_overlap, separator=None,top=True):
         if separator is None:
             separator = self.separator
         final = []
         i = 0
         sep = separator[i]
-        chunks = self.sen_bound(text, chunk_size, sep, chunk_overlap)
+        chunks = self.sen_bound(text, chunk_size, sep)
         for idx, chunk in enumerate(chunks):
             if len(chunk) > chunk_size:
                 if i + 1 < len(separator):
-                    final.extend(self.rec_chunk(chunk, chunk_size, chunk_overlap, separator[i+1:]))
+                    final.extend(self.rec_chunk(chunk, chunk_size, chunk_overlap, separator[i+1:], top=False))
                 else:
                     print("no")
                     final.append(chunk)
             else:
                 final.append(chunk)
-
-        return self.merge(final, chunk_size, chunk_overlap)
+        if top:
+            return self.overlap(self.merge(final, chunk_size),chunk_size,chunk_overlap)
+        return final
 # STRATEGRY : FIXED SIZE CHUNKING (NOT GOOD FOR RAG AS IT DOESNT RESPECT CONTEXT)
 
 # def fixed_size(text,chunk_size,chunk_overlap):
