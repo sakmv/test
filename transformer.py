@@ -2,6 +2,8 @@ from text_splitter import text_splitter
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import matplotlib.pyplot as plt
+import plotly.express as px
+
 print("Enter ur query:")
 user_query = input()
 with open("input.txt", "r",encoding="utf-8") as f:
@@ -22,7 +24,13 @@ for i in range(len(chunks)):
             em_mat[i][j]=np.dot(embed[i],embed[j])
 sim=np.array([np.dot(user_embed,embed[i]) for i in range(len(chunks))])
 print(chunks[np.argmax(sim)])
-plt.imshow(em_mat,cmap='magma',interpolation='nearest')
+# plt.imshow(em_mat,cmap='magma',interpolation='nearest')
+# plt.colorbar()
+# plt.title("Similarity Matrix of generated chunks")
+# plt.show()
+fig=px.imshow(em_mat,color_continuous_scale='magma')
+fig.update_layout(title="Similarity Matrix of generated chunks")
+fig.update_coloraxes(colorbar_title="Cosine Similarity")
+fig.show()
 
-plt.show()
 
