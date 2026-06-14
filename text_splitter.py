@@ -48,7 +48,7 @@ class text_splitter:
             else:
                 if buffer:
                     merged.append(" ".join(buffer))
-                    buffer = []
+                    buffer = [chunk]
                 else:
                     merged.append(chunk)
         if buffer:
@@ -63,7 +63,10 @@ class text_splitter:
         chunkf=[]
         chunkf.append(chunks[0])
         for i in range(1,len(chunks)):
-            overlap_part=chunks[i-1][-(chunk_size-len(chunks[i])):]
+            if len(chunks[i])+chunk_overlap<=chunk_size:
+                overlap_part=chunks[i-1][-(chunk_overlap):]
+            else:
+                overlap_part=chunks[i-1][-(chunk_size-len(chunks[i])):]
             fs=overlap_part.find(" ")
             if fs!=-1:
                 overlap_part=overlap_part[fs+1:]
