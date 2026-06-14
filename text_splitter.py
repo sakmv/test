@@ -39,6 +39,8 @@ class text_splitter:
 
         return chunks
 
+#MERGING CHUNKS TO MAXIMIZE CONTEXT IN RAG
+
     def merge(self, chunks, chunk_size):
         buffer = []
         merged = []
@@ -54,6 +56,9 @@ class text_splitter:
         if buffer:
             merged.append(" ".join(buffer))
         return merged
+    
+#OVERLAPING CHUNKS TO MAINTAIN CONTEXT IN RAG
+
     def overlap(self,chunks,chunk_size,chunk_overlap):
         if chunk_overlap >= chunk_size:
             print("error overlap too big")
@@ -72,6 +77,8 @@ class text_splitter:
                 overlap_part=overlap_part[fs+1:]
             chunkf.append(overlap_part.strip()+" "+chunks[i])
         return chunkf
+
+#ACTUAL RECURSIVE CHUNKING FUNCTION
     def rec_chunk(self, text, chunk_size, chunk_overlap, separator=None,top=True):
         if separator is None:
             separator = self.separator
@@ -91,6 +98,8 @@ class text_splitter:
         if top:
             return self.overlap(self.merge(final, chunk_size),chunk_size,chunk_overlap)
         return final
+
+
 # STRATEGRY : FIXED SIZE CHUNKING (NOT GOOD FOR RAG AS IT DOESNT RESPECT CONTEXT)
 
 # def fixed_size(text,chunk_size,chunk_overlap):
