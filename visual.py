@@ -1,5 +1,4 @@
 from text_splitter import text_splitter
-from sentence_transformers import SentenceTransformer
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
