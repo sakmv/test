@@ -20,7 +20,7 @@ class singleHead(nn.Module):
         self.W_q=nn.Linear(d_model,d_k,bias=False)
         self.W_k=nn.Linear(d_model,d_k,bias=False)
         self.W_v=nn.Linear(d_model,d_k,bias=False)
-        self.F=nn.Linear(d_model,d_k,bias=False)
+        
     def forward(self,X):
         Q=self.W_q(X)
         K=self.W_k(X)
@@ -29,7 +29,6 @@ class singleHead(nn.Module):
         scores=scores/math.sqrt(self.d_k)
         weight=F.softmax(scores,dim=-1)
         out=torch.matmul(weight,V)
-        out=F(out)
         return out,weight
 
 B=2
