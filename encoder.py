@@ -33,7 +33,7 @@ class PositionalEncoding(nn.Module): #add positional encoding to x
         pe[:,0::2]=torch.sin(position/div_term)
         pe[:,1::2]=torch.cos(position/div_term)
 
-        pe.unsqueeze(0)
+        pe=pe.unsqueeze(0)
         self.register_buffer('pe',pe)
     def forward(self,x):
         x=x+ self.pe[:,:x.shape[1],:].requires_grad_(False)# so basically we have made pe columns till seq_len(max, token) but x may be till only some less tokens
@@ -119,14 +119,14 @@ class connector(nn.Module):
         return x + self.drop(self.norm(layer(x)))
 
 class encoderB(nn.Module):
-    def __init__(self,multihead:Multihead,ff:FeedForward,drop:float):
+    def __init__(self,multihead:Multihead,ff:FeedForward,drop:float,d_model:int):
         super().__init__()
         self.multihead=multihead
         self.ff=ff
-        self.connector1=connector(drop)
-        self.connector2=connector(drop)
+        self.connector1=connector(d_model,drop)
+        self.connector2=connector(d_model,drop)
     
-    def forward(self, x, mask):
+    def forward(self, x):
          x = self.connector1(x, lambda x: self.multihead(x, x, x)) #lamda because we defined connector with sublayer  taking only 1 input. we use 
          #lamda to make it look like we takking 1 but actually using it 3 times 
          x = self.connector2(x, self.ff)
@@ -134,6 +134,7 @@ class encoderB(nn.Module):
 
 class Encoder(nn.Module):
     def __init__(self,layers:nn.ModuleList):
+        super().__init__()
         self.layers=layers
         self.norm=Normalization()
     def forward(self,x):
