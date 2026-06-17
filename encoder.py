@@ -63,7 +63,7 @@ class Multihead(nn.Module):
 
 
 
-    def forward(self,q,k,v,mask):
+    def forward(self,q,k,v):
         query=self.wq(q)
         key=self.wk(k)
         value=self.wv(v)
@@ -115,12 +115,10 @@ class connector(nn.Module):
         super().__init__()
         self.drop=nn.Dropout(dropout)
         self.norm=Normalization(d_model)
-    
-    def forward(self,x,layer):
-        return x+self.drop(self.norm(layer(x)))
-    
+    def forward(self, x, layer):
+        return x + self.drop(self.norm(layer(x)))
 
-class encoder(nn.Module):
+class encoderB(nn.Module):
     def __init__(self,multihead:Multihead,ff:FeedForward,drop:float):
         super().__init__()
         self.multihead=multihead
@@ -128,5 +126,19 @@ class encoder(nn.Module):
         self.connector1=connector(drop)
         self.connector2=connector(drop)
     
-    def forward(self,x,mask):
-        x=self.connector
+    def forward(self, x, mask):
+         x = self.connector1(x, lambda x: self.multihead(x, x, x)) #lamda because we defined connector with sublayer  taking only 1 input. we use 
+         #lamda to make it look like we takking 1 but actually using it 3 times 
+         x = self.connector2(x, self.ff)
+         return x
+
+class Encoder(nn.Module):
+    def __init__(self,layers:nn.ModuleList):
+        self.layers=layers
+        self.norm=Normalization()
+    def forward(self,x):
+        for layer in self.layers:
+            x=layer(x)
+        return self.norm(x)
+
+    
