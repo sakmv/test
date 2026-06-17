@@ -2,7 +2,14 @@ import torch
 import torch.nn as nn
 import math 
 #chunks -->tokenizer---->tokens--->
+class Tokenizer:
+    def __init__(self, text):
+        chars = sorted(set(text))
+        self.vocab = {ch: i for i, ch in enumerate(chars)}
+        self.vocab_size = len(chars)
 
+    def encode(self, text):
+        return torch.tensor([self.vocab[ch] for ch in text])
 #-->input embedding layer--->                                           
 class InputEmbeddings(nn.Module):
     def __init__(self,d_model: int, vocab: int):
