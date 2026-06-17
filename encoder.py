@@ -1,15 +1,9 @@
 import torch
 import torch.nn as nn
 import math 
+from transformers import AutoTokenizer
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 #chunks -->tokenizer---->tokens--->
-class Tokenizer:
-    def __init__(self, text):
-        chars = sorted(set(text))
-        self.vocab = {ch: i for i, ch in enumerate(chars)}
-        self.vocab_size = len(chars)
-
-    def encode(self, text):
-        return torch.tensor([self.vocab[ch] for ch in text])
 #-->input embedding layer--->                                           
 class InputEmbeddings(nn.Module):
     def __init__(self,d_model: int, vocab: int):
@@ -17,7 +11,7 @@ class InputEmbeddings(nn.Module):
         self.d_model=d_model
         self.vocab=vocab #get from tokenizer. no. of unique tokens 
         self.embedding=nn.Embedding(vocab,d_model)
-
+    
     def forward(self,x):    #input a 2d matrix of batch_size,seq_len (example: sentences rows ,word column matrix)
         return self.embedding(x)*math.sqrt(self.d_model)  #output of 3d matrix with each word hving a vector embedding of size d_model 
     #multiplied by root d to scale it up(originally very small values) so easily measured with positional encodings(-1,1)
@@ -32,7 +26,7 @@ class PositionalEncoding(nn.Module): #add positional encoding to x
         self.d_model=d_model
         self.Dropout=nn.Dropout(dropout)
         pe=torch.zeros(self.seq_len,self.d_model)
-        position=torch.arange(0,seq_len,dtype=torch.float()).unsqueeze(1) #arrage is used to make the tensor, then unsqueeze(1) to make it a column seq_len
+        position=torch.arange(0,seq_len,dtype=torch.float).unsqueeze(1) #arrage is used to make the tensor, then unsqueeze(1) to make it a column seq_len
         #so it corresponds to the seq_len column of pe, which will be added to matrix of seq_len,d_model
 
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)) #formula only taking even indices till d_model(2i=even,2i+1=odd)
@@ -130,8 +124,8 @@ class encoderB(nn.Module):
         super().__init__()
         self.multihead=multihead
         self.ff=ff
-        self.connector1=connector(d_model,drop)
-        self.connector2=connector(d_model,drop)
+        self.connector1=connector(drop,d_model)
+        self.connector2=connector(drop,d_model)
     
     def forward(self, x):
          x = self.connector1(x, lambda x: self.multihead(x, x, x)) #lamda because we defined connector with sublayer  taking only 1 input. we use 
@@ -140,13 +134,32 @@ class encoderB(nn.Module):
          return x
 
 class Encoder(nn.Module):
-    def __init__(self,layers:nn.ModuleList):
+    def __init__(self,d_model,layers:nn.ModuleList):
         super().__init__()
         self.layers=layers
-        self.norm=Normalization()
+        self.norm=Normalization(d_model)
     def forward(self,x):
         for layer in self.layers:
             x=layer(x)
         return self.norm(x)
+    
+
+    ##REVISE 
+D_MODEL = 128
+
+multihead = Multihead(d_model=D_MODEL, h=4, dropout=0.1)
+ff = FeedForward(d_model=D_MODEL, dff=D_MODEL*4, dropout=0.1)
+embed_model = InputEmbeddings(d_model=D_MODEL, vocab=tokenizer.vocab_size)
+pe_model = PositionalEncoding(seq_len=512, d_model=D_MODEL, dropout=0.1)
+encoder_model = Encoder(D_MODEL, nn.ModuleList([encoderB(multihead, ff, 0.1, D_MODEL)]))
+encoder_model.eval()
+
+def get_embedding(text):
+    tokens = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+    with torch.no_grad():
+        x = embed_model(tokens["input_ids"])
+        x = pe_model(x)
+        out = encoder_model(x)
+    return out.mean(dim=1).squeeze().tolist()
 
     

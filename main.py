@@ -18,7 +18,7 @@ while True:
      query=input("ques: ")
      if query=="done":
           break
-     retrieved=retrieve([query],collection)
+     retrieved=retrieve(query,collection)
      print(retrieved)
 
 data=collection.get(include=["documents","embeddings"])
