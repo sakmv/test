@@ -22,7 +22,6 @@ while True:
           break
      retrieved=retrieve(query,collection)
      getPrompt(query,retrieved['documents'])
-     print(retrieved)
 
 data=collection.get(include=["documents","embeddings"])
 visualize(data["documents"],data["embeddings"])

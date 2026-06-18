@@ -150,7 +150,7 @@ D_MODEL = 512
 
 multihead = Multihead(d_model=D_MODEL, h=4, dropout=0.1)
 ff = FeedForward(d_model=D_MODEL, dff=D_MODEL*4, dropout=0.1)
-embed = InputEmbeddings(d_model=D_MODEL, vocab=tokenizer.vocab_size)
+embed_model = InputEmbeddings(d_model=D_MODEL, vocab=tokenizer.vocab_size)
 pe = PositionalEncoding(seq_len=512, d_model=D_MODEL, dropout=0.1)
 encoder = Encoder(D_MODEL, nn.ModuleList([encoderB(multihead, ff, 0.1, D_MODEL),encoderB(multihead, ff, 0.1, D_MODEL),encoderB(multihead, ff, 0.1, D_MODEL),encoderB(multihead, ff, 0.1, D_MODEL),encoderB(multihead, ff, 0.1, D_MODEL),encoderB(multihead, ff, 0.1, D_MODEL)]))
 encoder.eval()
@@ -159,7 +159,7 @@ encoder.eval()
 def get_embedding(text):
     tokens = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
     with torch.no_grad():
-        x = embed(tokens["input_ids"])
+        x = embed_model(tokens["input_ids"])
         x = pe(x)
         out = encoder(x)
         embed=out.mean(dim=1).squeeze()
