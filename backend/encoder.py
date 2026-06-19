@@ -5,7 +5,7 @@ from transformers import AutoTokenizer
 import numpy as np
 tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 #chunks -->tokenizer---->tokens--->
-#-->input embedding layer--->                                           
+#-->input embedding layer--->                                            
 class InputEmbeddings(nn.Module):
     def __init__(self,d_model: int, vocab: int):
         super().__init__()
