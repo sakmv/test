@@ -98,19 +98,3 @@ class text_splitter:
         if top:
             return self.overlap(self.merge(final, chunk_size),chunk_size,chunk_overlap)
         return final
-
-
-# STRATEGRY : FIXED SIZE CHUNKING (NOT GOOD FOR RAG AS IT DOESNT RESPECT CONTEXT)
-
-# def fixed_size(text,chunk_size,chunk_overlap):
-#     if(chunk_overlap>=chunk_size):
-#         print("Overlap cannot be greater than or equal to chunk size")
-#         return []
-#     chunks = []
-#     i=0
-#     while i < len(text):
-#         end=i+chunk_size
-#         chunks.append(text[i:end])
-#         i=end-chunk_overlap
-#     print(chunks)
-#     return chunks
