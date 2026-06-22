@@ -5,7 +5,7 @@ load_dotenv()
     
 def getPrompt(user,chunks,mem):
             client = OpenAI(
-            api_key="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",
+            api_key="",
             base_url="https://api.groq.com/openai/v1",
            )
             response = client.responses.create(

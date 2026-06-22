@@ -147,12 +147,19 @@ class Encoder(nn.Module):
 
     ##REVISE 
 D_MODEL = 512
+def make_layer():
+    return encoderB(
+        Multihead(d_model=D_MODEL, h=4, dropout=0.1),
+        FeedForward(d_model=D_MODEL, dff=D_MODEL*4, dropout=0.1),
+        0.1, D_MODEL
+    )
 
+encoder = Encoder(D_MODEL, nn.ModuleList([make_layer() for _ in range(6)]))
 multihead = Multihead(d_model=D_MODEL, h=4, dropout=0.1)
 ff = FeedForward(d_model=D_MODEL, dff=D_MODEL*4, dropout=0.1)
 embed_model = InputEmbeddings(d_model=D_MODEL, vocab=tokenizer.vocab_size)
 pe = PositionalEncoding(seq_len=512, d_model=D_MODEL, dropout=0.1)
-encoder = Encoder(D_MODEL, nn.ModuleList([encoderB(multihead, ff, 0.1, D_MODEL),encoderB(multihead, ff, 0.1, D_MODEL),encoderB(multihead, ff, 0.1, D_MODEL),encoderB(multihead, ff, 0.1, D_MODEL),encoderB(multihead, ff, 0.1, D_MODEL),encoderB(multihead, ff, 0.1, D_MODEL)]))
+encoder = Encoder(D_MODEL, nn.ModuleList([make_layer(),make_layer(),make_layer(),make_layer(),make_layer(),make_layer()]))
 encoder.eval()
 
 
