@@ -50,7 +50,7 @@ def getSource(response,chunks):
         source = client.responses.create(
         input=f"""You are a context-grounded AI assistant for document question answering. You are given the answer and chunks used to achieve that answer and your job is to respond with specific chunks that were used as context to get that answer. DO NOT HALLUCINATE OR SUMMARIZE OR GIVE FORM YOUR OWN INTEPRETATION. GIVE THE CHUNK OR THE LINES AS IT IS WHICH ARE USED TO ACHIEVE THE SPEICIF ANSWER ##INPUT 
         answer={response} chunks={chunks}## OUTPUT FORMAT
-         <CHUNKS/LINES USED WITHOUT ANY CHANGE WRITTEN AS GIVEN IN THE OUTPUT> """
+         <CHUNKS/LINES USED WITHOUT ANY CHANGE WRITTEN AS GIVEN IN THE OUTPUT END WITH THE FILENAME OF THE SOURCE> """
         ,model="openai/gpt-oss-20b",stream=True,)
         for event in source:
             if event.type == "response.output_text.delta":

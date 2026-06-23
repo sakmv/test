@@ -3,6 +3,7 @@ import torch.nn as nn
 import math 
 from transformers import AutoTokenizer
 import numpy as np
+import torch.nn.functional as F
 tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 #chunks -->tokenizer---->tokens--->
 #-->input embedding layer--->                                            
@@ -55,7 +56,7 @@ class Multihead(nn.Module):
         self.wo=nn.Linear(d_model,d_model,bias=False)
         self.dropout=nn.Dropout(dropout)
     @staticmethod
-    def attention(query,value,key,dropout:nn.Dropout):
+    def attention(query,key,value,dropout:nn.Dropout):
         dk=query.shape[-1]
         at_score=(query@key.transpose(-2,-1))/math.sqrt(dk) #results in matrix of batch,head,sqln,sqln
         at_score=at_score.softmax(dim=-1)
@@ -84,17 +85,12 @@ class Multihead(nn.Module):
 class Normalization(nn.Module):
     def __init__(self,d_model: int,e: float=10**(-6)): #formula for norm is x-mean/root of variance+e 
         super().__init__()
-        self.e=e
         # now we have two parameters bias(additive) and alpha(multiplicative) which allow model to optimize values accordingly to amplify.otherwise model is restrictive.all mean=0 and var=1.limits learninh
       #ONLY NEED THIS IF WE ARE BUILDING NORM FROM SCRATCH. LAYERNORM ALREADY HAS THESE BUILT IN 
-        self.a=nn.Parameter(torch.ones(d_model)) ##originally multiplication should not affect so a*1=a therefore 1
-        self.b=nn.Parameter(torch.zeros(d_model)) ##same logic a+0=a these should be changed later by model if needed
+        self.norm=nn.LayerNorm(d_model,e) ##originally multiplication should not affect so a*1=a therefore 1 ##same logic a+0=a these should be changed later by model if needed
 
     def forward(self,x):
-        mean=x.mean(dim=-1,keepdim=True)
-        std=x.std(dim=-1,keepdim=True)
-        norm=(x-mean)/(self.e+std)
-        return ((norm*self.a)+self.b)
+        return self.norm(x)
 
 ##--->Feed Forward---->Normalization
 # 2 LINEAR LAYERS WITH A RELU IN E=BETWEEN .RELU IS an activation function that kills negative values
@@ -118,7 +114,7 @@ class connector(nn.Module):
         self.drop=nn.Dropout(dropout)
         self.norm=Normalization(d_model)
     def forward(self, x, layer):
-        return x + self.drop(self.norm(layer(x)))
+        return x + self.drop(layer(self.norm(x)))
 
 class encoderB(nn.Module):
     def __init__(self,multihead:Multihead,ff:FeedForward,drop:float,d_model:int):
@@ -159,8 +155,6 @@ multihead = Multihead(d_model=D_MODEL, h=4, dropout=0.1)
 ff = FeedForward(d_model=D_MODEL, dff=D_MODEL*4, dropout=0.1)
 embed_model = InputEmbeddings(d_model=D_MODEL, vocab=tokenizer.vocab_size)
 pe = PositionalEncoding(seq_len=512, d_model=D_MODEL, dropout=0.1)
-encoder = Encoder(D_MODEL, nn.ModuleList([make_layer(),make_layer(),make_layer(),make_layer(),make_layer(),make_layer()]))
-encoder.eval()
 
 
 def get_embedding(text):
@@ -170,4 +164,4 @@ def get_embedding(text):
         x = pe(x)
         out = encoder(x)
         embed=out.mean(dim=1).squeeze()
-    return (np.array(embed)/np.linalg.norm(np.array(embed))).tolist()
+        return (np.array(embed)/np.linalg.norm(np.array(embed))).tolist()
