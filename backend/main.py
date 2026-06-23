@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from pdf_text import extract_Text
 ##SINCE OUR BACKEND WILL BE ON RENDER AND FRONTEND ON VERCEL WE NEED CORS(CROSS ORIGIN RESOURCE SHARING)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+import json
 
 app = FastAPI()
 
@@ -29,6 +31,19 @@ class Query(BaseModel):
 class Session(BaseModel):
     ses:str
 
+@app.post("/files")
+async def getFiles(session:Session):
+    fileSet=set()
+    collection=getCollection(session.ses)
+    data=collection.get(include=["metadatas"])
+    print("DATA:", data)  
+    for d in data["metadatas"]:
+        fileSet.add(d["source"])
+    return {
+        "fileSet":list(fileSet)
+    }
+
+
 @app.post("/upload")
 async def upload_f(file:list[UploadFile]=File(...),sessionid:str=Form(...)):
     filenames=[]
@@ -45,14 +60,22 @@ async def upload_f(file:list[UploadFile]=File(...),sessionid:str=Form(...)):
     
 
 @app.post("/query")
-async def query_res(query:Query):
-    txt=query.text
-    collection=getCollection(query.sessionid)
+async def query_res(query: Query):
+    txt = query.text
+    collection = getCollection(query.sessionid)
     retrieved = retrieve(txt, collection)
     print("RETRIEVED CHUNKS:", retrieved['documents'])
-    result=getPrompt(txt,retrieved,query.memory)
-    source=getSource(result,retrieved)
-    return {'response':result,'sources':source}
+
+    def event_stream():
+        full_response = ""
+        for token in getPrompt(txt, retrieved, query.memory):
+            full_response += token
+            yield f"data: {json.dumps({'token': token, 'type': 'answer'})}\n\n"
+        for token in getSource(full_response, retrieved):
+            yield f"data: {json.dumps({'token': token, 'type': 'source'})}\n\n"
+        yield f"data: {json.dumps({'done': True})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 @app.post("/visual")
 async def visualise(sesh:Session):

@@ -1,5 +1,6 @@
 from openai import OpenAI
 from dotenv import load_dotenv
+import time
 
 load_dotenv()
     
@@ -8,7 +9,7 @@ def getPrompt(user,chunks,mem):
             api_key="",
             base_url="https://api.groq.com/openai/v1",
            )
-            response = client.responses.create(
+            stream = client.responses.create(
             input=f"""
 You are a context-grounded AI assistant for document question answering.
 
@@ -34,16 +35,24 @@ Context Chunks:
 ### OUTPUT FORMAT (STRICT)
 <final Answer using ONLY exact sentences from the context.You can rephrase IF user asked a specific question but the source of knowlledge is purely from the sentences>
 """,
-            model="openai/gpt-oss-20b",
+            model="openai/gpt-oss-20b",stream=True,
            )
-            return response.output_text 
+            for event in stream:
+               if event.type == "response.output_text.delta":
+                yield event.delta
+                time.sleep(0.05)
+
 def getSource(response,chunks):
         if "no context provided" in response.strip().lower():
-              return "No source"
+              yield "No source"
+              return
         client = OpenAI( api_key="", base_url="https://api.groq.com/openai/v1", )
         source = client.responses.create(
         input=f"""You are a context-grounded AI assistant for document question answering. You are given the answer and chunks used to achieve that answer and your job is to respond with specific chunks that were used as context to get that answer. DO NOT HALLUCINATE OR SUMMARIZE OR GIVE FORM YOUR OWN INTEPRETATION. GIVE THE CHUNK OR THE LINES AS IT IS WHICH ARE USED TO ACHIEVE THE SPEICIF ANSWER ##INPUT 
         answer={response} chunks={chunks}## OUTPUT FORMAT
          <CHUNKS/LINES USED WITHOUT ANY CHANGE WRITTEN AS GIVEN IN THE OUTPUT> """
-        ,model="openai/gpt-oss-20b",)
-        return source.output_text 
+        ,model="openai/gpt-oss-20b",stream=True,)
+        for event in source:
+            if event.type == "response.output_text.delta":
+                yield event.delta
+                time.sleep(0.05)
