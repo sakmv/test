@@ -184,7 +184,7 @@ return (
         <div className="w-10 h-10 rounded-full bg-[#3F5B45] flex items-center justify-center shadow-sm">
           <FileText size={18} className="text-[#FAF6EC]" />
         </div>
-        <h1 className="dm-display text-4xl tracking-tight">noted</h1>
+        <h1 className="dm-display text-4xl tracking-tight">no</h1>
       </div>
       <p className="text-sm text-[#5C5848] italic">document intelligence, grounded in your sources</p>
       <div className="w-20 h-px bg-[#C9C2AE] mt-1" />
