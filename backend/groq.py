@@ -21,7 +21,7 @@ Your job is to answer the user's query ONLY using the provided context chunks, a
    No context provided
 3. Do NOT use outside knowledge.
 4. Do NOT guess or hallucinate.
-5. Do NOT add explanations, opinions, or extra commentary.
+5. Do NOT add explanations, opinions, or extra commentary. But frame to answer user's query
 ### INPUT
 Memory: 
 {mem}
@@ -33,7 +33,7 @@ Context Chunks:
 
 ---
 ### OUTPUT FORMAT (STRICT)
-<final Answer using ONLY exact sentences from the context.You can rephrase IF user asked a specific question but the source of knowlledge is purely from the sentences>
+<final Answer using ONLY exact sentences from the context.You can rephrase IF user asked a specific question but the source of knowlledge is purely from the sentences, however TRY TO ANSWER USERS QUERY WITH THE KNOWLLEDGE BASE IF POSSIBLE>
 """,
             model="openai/gpt-oss-20b",stream=True,
            )
@@ -50,7 +50,7 @@ def getSource(response,chunks):
         source = client.responses.create(
         input=f"""You are a context-grounded AI assistant for document question answering. You are given the answer and chunks used to achieve that answer and your job is to respond with specific chunks that were used as context to get that answer. DO NOT HALLUCINATE OR SUMMARIZE OR GIVE FORM YOUR OWN INTEPRETATION. GIVE THE CHUNK OR THE LINES AS IT IS WHICH ARE USED TO ACHIEVE THE SPEICIF ANSWER ##INPUT 
         answer={response} chunks={chunks}## OUTPUT FORMAT
-         <CHUNKS/LINES USED WITHOUT ANY CHANGE WRITTEN AS GIVEN IN THE OUTPUT END WITH THE FILENAME OF THE SOURCE> """
+         <CHUNKS/LINES USED WITHOUT ANY CHANGE WRITTEN AS GIVEN IN THE OUTPUT. (SOURCE FILENAME HERE)> """
         ,model="openai/gpt-oss-20b",stream=True,)
         for event in source:
             if event.type == "response.output_text.delta":

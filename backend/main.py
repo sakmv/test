@@ -10,6 +10,7 @@ from pdf_text import extract_Text
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import json
+from rerank import reranker
 
 app = FastAPI()
 
@@ -65,13 +66,14 @@ async def query_res(query: Query):
     collection = getCollection(query.sessionid)
     retrieved = retrieve(txt, collection)
     print("RETRIEVED CHUNKS:", retrieved['documents'])
-
+    reranked=reranker(retrieved,txt)
+    print(reranked)
     def event_stream():
         full_response = ""
-        for token in getPrompt(txt, retrieved, query.memory):
+        for token in getPrompt(txt, reranked, query.memory):
             full_response += token
             yield f"data: {json.dumps({'token': token, 'type': 'answer'})}\n\n"
-        for token in getSource(full_response, retrieved):
+        for token in getSource(full_response, reranked):
             yield f"data: {json.dumps({'token': token, 'type': 'source'})}\n\n"
         yield f"data: {json.dumps({'done': True})}\n\n"
 
@@ -81,8 +83,9 @@ async def query_res(query: Query):
 async def visualise(sesh:Session):
     collection=getCollection(sesh.ses)
     data=collection.get(include=["documents","embeddings"])##this return numpy ndarry so if every directly returning it need to convert to list because not json native
-    sim_mat=visualize(data["documents"],data["embeddings"])
+    emat,pca_points=visualize(data["documents"])
     return{
         "documents":data["documents"],
-        "matrix":sim_mat
+        "matt":emat,
+        "pca":pca_points
     }

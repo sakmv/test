@@ -2,7 +2,11 @@ import { useState,useRef,useEffect } from 'react'
 import { FileText, Paperclip, Upload, Search, MessagesSquare, Quote, Sparkles, ScatterChart, Grid3x3, Zap } from "lucide-react";
 import './index.css'
 import toast, { Toaster } from 'react-hot-toast';
+import Plot from 'react-plotly.js'
+
 const BASE_URL = 'http://127.0.0.1:8000'
+
+
 
 function App() {
 const getSession =()=>{
@@ -13,7 +17,7 @@ const getSession =()=>{
   }
   return sid
 }
-
+const [visible,setVisible]=useState(true)
 const fileInputRef = useRef(null)
 const [file,setFile]=useState([])
 const [query,setQuery]=useState('')
@@ -21,6 +25,9 @@ const [loading,setLoading]=useState(false)
 const [sessionId]=useState(getSession)
 const [responseList,setResponseList]=useState([])
 const[filenames,setFilenames]=useState([])
+const[matrix,setMatrix]=useState([])
+const[columns,setColumns]=useState([])
+const [pca, setPca] = useState([])
 
 const getFiles = async ()=>{
   const f = await fetch(`${BASE_URL}/files`,{
@@ -120,6 +127,10 @@ const queryAsk = async ()=>{
 const visual=async()=>{
   try{
     setLoading(true)
+    if(filenames.length==0){
+      toast.error('No chunks Generated. Upload a file')
+      return
+    }
     const sim= await fetch(`${BASE_URL}/visual`,{
       method:'POST',
       mode:'cors',
@@ -129,7 +140,11 @@ const visual=async()=>{
     if(!sim.ok){
       throw new Error(`${sim.status}`)
     }
-    const mat = sim.json()
+    const mat = await sim.json()
+    setMatrix(mat.matt)
+    setPca(mat.pca)
+    setVisible(false)  
+    
   }
   catch(error){
     toast.error(`${error}`)
@@ -140,192 +155,178 @@ const visual=async()=>{
 }
 
 return (
-  <div className="bg-gradient-to-b from-stone-50 to-stone-100 min-h-screen w-full text-stone-900 flex flex-col items-center px-6 py-16 gap-10">
+<>
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&display=swap');
+    .dm-root { font-family:'Lora',serif; }
+    .dm-display { font-family:'Libre Caslon Text',serif; }
+    .dm-mono { font-family:'Space Mono',monospace; }
+    .dm-paper { background:#FAF6EC repeating-linear-gradient(transparent 0 31px, rgba(63,91,69,.05) 31px 32px); }
+    .dm-scroll::-webkit-scrollbar{width:6px}
+    .dm-scroll::-webkit-scrollbar-thumb{background:rgba(63,91,69,.25);border-radius:99px}
+    .dm-mark {
+      background: linear-gradient(104deg, transparent 0%, #FFE066 6%, #FFD94D 50%, #FFE066 94%, transparent 100%);
+      background-repeat: no-repeat;
+      padding: 0.15em 0.35em;
+      border-radius: 2px;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+  `}</style>
+
+  <div className="dm-root dm-paper min-h-screen w-full text-[#2B2A25] flex flex-col items-center px-6 py-16 gap-10">
     <Toaster />
 
-    {/* Header */}
-    <div className="w-full flex flex-col items-center gap-3">
+    {/* Masthead */}
+    <div className="w-full flex flex-col items-center gap-2 text-center">
+      <span className="dm-mono text-[10px] uppercase tracking-[0.3em] text-[#C1652F]">Vol. I — Field Notes</span>
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-stone-800 to-stone-900 flex items-center justify-center shadow-lg shadow-stone-900/20">
-          <FileText size={20} className="text-white" />
+        <div className="w-10 h-10 rounded-full bg-[#3F5B45] flex items-center justify-center shadow-sm">
+          <FileText size={18} className="text-[#FAF6EC]" />
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-stone-900">docmind</h1>
+        <h1 className="dm-display text-4xl tracking-tight">noted</h1>
       </div>
-      <p className="text-sm text-stone-500 tracking-wide">Document intelligence, grounded in your sources</p>
+      <p className="text-sm text-[#5C5848] italic">document intelligence, grounded in your sources</p>
+      <div className="w-20 h-px bg-[#C9C2AE] mt-1" />
     </div>
 
-    {/* Main Input Card */}
-    <div className="w-full max-w-4xl bg-white border border-stone-200/80 rounded-2xl p-6 shadow-sm shadow-stone-200/50 flex flex-col gap-5">
+    {/* Intake Card */}
+    <div className="w-full max-w-3xl bg-white border border-[#E5DFCB] rounded-md p-6 shadow-[0_8px_30px_-12px_rgba(63,91,69,.25)] flex flex-col gap-5">
 
-      {/* File Upload Row */}
       <div className="flex items-center gap-3">
-        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider w-16">Files</span>
+        <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider w-16">Files</span>
         <div className="flex-1 flex items-center gap-3">
-          <label className="bg-stone-50 hover:bg-stone-100 text-stone-600 text-sm rounded-xl py-2.5 px-5 cursor-pointer transition-all border border-stone-200 hover:border-stone-300 flex items-center gap-2 font-medium">
-            <Paperclip size={15} />
-            Browse
-            <input
-              className="hidden"
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.txt"
-              multiple
-              onChange={(e) => setFile([...e.target.files])}
-            />
+          <label className="bg-[#FAF6EC] hover:bg-[#F2EBD8] text-sm rounded-md py-2.5 px-5 cursor-pointer border border-[#E5DFCB] hover:border-[#C9C2AE] flex items-center gap-2 font-medium transition-all">
+            <Paperclip size={15} className="text-[#3F5B45]" /> Browse
+            <input className="hidden" ref={fileInputRef} type="file" accept=".pdf,.txt" multiple
+              onChange={(e) => setFile([...e.target.files])} />
           </label>
-          <button
-            className="bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl py-2.5 px-5 transition-all flex items-center gap-2 shadow-sm hover:shadow-md"
-            onClick={uploadFile}
-            disabled={loading}
-          >
-            <Upload size={15} />
-            Upload
+          <button className="bg-[#3F5B45] hover:bg-[#34492c] disabled:bg-[#B9B6A8] text-[#FAF6EC] text-sm font-medium rounded-md py-2.5 px-5 flex items-center gap-2 shadow-sm transition-all"
+            onClick={uploadFile} disabled={loading}>
+            <Upload size={15} /> Upload
           </button>
         </div>
       </div>
 
-      {/* Selected but not yet uploaded */}
       {file.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Ready to upload</span>
-          <div className="flex flex-wrap gap-2">
-            {file.map((f, idx) => (
-              <div key={idx} className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-medium border border-blue-200">
-                <span>{f.name}</span>
-              </div>
-            ))}
-          </div>
+        <div className="flex flex-wrap gap-2 pl-[4.5rem]">
+          {file.map((f, idx) => (
+            <span key={idx} className="dm-mono text-xs bg-[#EFE4D4] text-[#8A4A1F] px-3 py-1 rounded-md border border-[#C1652F]/30">{f.name}</span>
+          ))}
         </div>
       )}
 
-      {/* Uploaded Files List */}
       {filenames.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Uploaded Files</span>
-          <div className="flex flex-wrap gap-2">
-            {filenames.map((name, idx) => (
-              <div key={idx} className="flex items-center gap-2 bg-stone-100 text-stone-700 px-3 py-1 rounded-lg text-xs font-medium border border-stone-200">
-                <span>{name}</span>
-              </div>
-            ))}
-          </div>
+        <div className="flex flex-wrap gap-2 pl-[4.5rem]">
+          {filenames.map((name, idx) => (
+            <span key={idx} className="dm-mono text-xs bg-[#F4F0E4] px-3 py-1 rounded-md border border-[#E5DFCB]">{name}</span>
+          ))}
         </div>
       )}
 
-      {/* Divider */}
-      <div className="h-px bg-stone-100" />
+      <div className="h-px bg-[#EFE9D8]" />
 
-      {/* Query Row */}
       <div className="flex items-center gap-3">
-        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider w-16">Ask</span>
+        <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider w-16">Ask</span>
         <div className="flex-1 flex items-center gap-3">
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8775]" />
             <input
-              className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-11 pr-4 py-3 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300 transition-all"
-              type="text"
-              placeholder="Ask something about your documents...(only .pdf, .txt)"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && queryAsk()}
-            />
+              className="w-full bg-[#FAF6EC] border border-[#E5DFCB] rounded-md pl-11 pr-4 py-3 text-sm placeholder-[#8C8775] focus:outline-none focus:ring-1 focus:ring-[#3F5B45]/40 focus:border-[#3F5B45]/50 transition-all"
+              type="text" placeholder="Ask something about your documents...(only .pdf, .txt)"
+              value={query} onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && queryAsk()} />
           </div>
-          <button
-            className="bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl px-6 py-3 transition-all shadow-sm hover:shadow-md"
-            onClick={queryAsk}
-            disabled={loading}
-          >
-            Go
-          </button>
+          <button className="bg-[#C1652F] hover:bg-[#a8551f] disabled:bg-[#B9B6A8] text-white text-sm font-medium rounded-md px-6 py-3 shadow-sm transition-all"
+            onClick={queryAsk} disabled={loading}>Go</button>
         </div>
       </div>
     </div>
 
-    {/* Results Grid */}
-    <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-5">
-      {/* Responses Panel */}
-      <div className="bg-white border border-stone-200/80 rounded-2xl p-6 flex flex-col gap-4 shadow-sm shadow-stone-200/50">
-        <div className="flex items-center gap-2 pb-2 border-b border-stone-100">
-          <MessagesSquare size={16} className="text-stone-500" />
-          <span className="text-sm font-semibold text-stone-700">Responses</span>
-          {responseList.length > 0 && (
-            <span className="ml-auto text-xs bg-stone-100 text-stone-500 px-2 py-0.5 rounded-full font-medium">
-              {responseList.length}
-            </span>
-          )}
-        </div>
-        <ul className="flex flex-col gap-3 max-h-80 overflow-y-auto">
-          {responseList.map((res, index) => (
-            <li key={index} className="list-none bg-stone-50 rounded-xl p-4 border border-stone-100">
-              <div className="flex items-start gap-2 mb-3">
-                <div className="w-5 h-5 rounded-full bg-stone-200 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-[10px] font-bold text-stone-500">Q</span>
-                </div>
-                <p className="text-sm font-medium text-stone-800 leading-relaxed">{res.query}</p>
-              </div>
-              <div className="pl-7">
-                <p className="text-sm text-stone-600 leading-relaxed">{res.response}</p>
-              </div>
-            </li>
-          ))}
-          {responseList.length === 0 && (
-            <li className="text-center py-8 text-stone-400 text-sm">No responses yet</li>
-          )}
-        </ul>
+    {/* Entries Feed — question + answer + highlighted source, in one card */}
+    <div className="w-full max-w-3xl flex flex-col gap-4">
+      <div className="flex items-center gap-2 px-1">
+        <MessagesSquare size={14} className="text-[#3F5B45]" />
+        <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider">Entries</span>
+        {responseList.length > 0 && <span className="dm-mono text-[10px] text-[#8C8775]">({responseList.length})</span>}
+        <div className="flex-1 h-px bg-[#E5DFCB] ml-2" />
       </div>
 
-      {/* Citations Panel */}
-      <div className="bg-white border border-stone-200/80 rounded-2xl p-6 flex flex-col gap-4 shadow-sm shadow-stone-200/50">
-        <div className="flex items-center gap-2 pb-2 border-b border-stone-100">
-          <Quote size={16} className="text-amber-600" />
-          <span className="text-sm font-semibold text-stone-700">Source Citations</span>
-        </div>
-        <ul className="flex flex-col gap-3 max-h-80 overflow-y-auto">
-          {responseList.map((res, i) => (
-            <li key={i} className="list-none bg-amber-50/80 rounded-xl p-4 border-l-4 border-amber-400">
-              <p className="font-serif text-sm text-stone-700 leading-relaxed italic">"{res.source}"</p>
-            </li>
-          ))}
-          {responseList.length === 0 && (
-            <li className="text-center py-8 text-stone-400 text-sm">Citations will appear here</li>
-          )}
-        </ul>
+      <div className="dm-scroll flex flex-col gap-4 max-h-[34rem] overflow-y-auto pr-1">
+        {responseList.map((res, index) => (
+          <div key={index} className="bg-white border border-[#E5DFCB] rounded-md p-5 flex flex-col gap-3 shadow-[0_6px_20px_-14px_rgba(63,91,69,.3)]">
+            <div className="flex items-start gap-2">
+              <span className="dm-display text-[#C9C2AE] text-lg leading-none select-none">{String(index + 1).padStart(2, '0')}</span>
+              <p className="text-sm font-semibold leading-relaxed pt-0.5">{res.query}</p>
+            </div>
+            <p className="text-sm text-[#4A4738] leading-relaxed pl-7">{res.response}</p>
+            <p className="dm-display italic text-[14px] text-[#3a2f1c] leading-relaxed pl-7">
+              <Quote size={11} className="inline text-[#d7b65d] -mt-1 mr-1" />
+              <span className="dm-mark">{res.source}</span>
+            </p>
+          </div>
+        ))}
+
+        {responseList.length === 0 && (
+          <div className="bg-white border border-dashed border-[#D8D2BD] rounded-md py-12 flex flex-col items-center gap-2">
+            <Quote size={18} className="text-[#C9C2AE]" />
+            <span className="text-sm text-[#8C8775] italic">The page is blank — ask something to begin the entry.</span>
+          </div>
+        )}
       </div>
     </div>
 
-    {/* Visualizations Section */}
-    <div className="w-full max-w-4xl flex flex-col gap-6">
+    {/* Appendix — Figures */}
+    <div className="w-full max-w-3xl flex flex-col gap-6">
       <div className="flex items-center gap-4">
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent to-stone-200" />
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-stone-100 rounded-full">
-          <Sparkles size={14} className="text-stone-500" />
-          <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Visualizations</span>
+        <div className="flex-1 h-px bg-[#E5DFCB]" />
+        <div className="flex items-center gap-2 px-4 py-1.5 bg-[#F2EBD8] rounded-full border border-[#E5DFCB]">
+          <Sparkles size={13} className="text-[#3F5B45]" />
+          <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider">Figures</span>
         </div>
-        <div className="flex-1 h-px bg-gradient-to-l from-transparent to-stone-200" />
+        <div className="flex-1 h-px bg-[#E5DFCB]" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="h-56 bg-white border border-stone-200/80 rounded-2xl flex flex-col items-center justify-center gap-3 shadow-sm shadow-stone-200/50 hover:shadow-md transition-shadow cursor-pointer group">
-          <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center group-hover:bg-stone-200 transition-colors">
-            <ScatterChart size={24} className="text-stone-500" />
+        {[
+          { label: 'Fig. 1 — Chunk Similarity Heatmap', data: matrix.length > 0 && [{ z: matrix, type: 'heatmap', colorscale: [[0,'#FAF6EC'],[0.35,'#E9D9BE'],[0.65,'#C1652F'],[1,'#3F5B45']] }], icon: ScatterChart },
+          { label: 'Fig. 2 — Dimensionally Reduced Scatter Plot', data: pca.length > 0 && [{
+              x: pca.map(p => p.x), y: pca.map(p => p.y), text: pca.map(p => p.label),
+              mode: 'markers+text', type: 'scatter', textposition: 'top center',
+              textfont: { size: 9, color: '#8C8775' },
+              marker: { size: 8, color: pca.map((_, i) => i), colorscale: [[0,'#FAF6EC'],[0.35,'#E9D9BE'],[0.65,'#C1652F'],[1,'#3F5B45']] },
+            }], icon: Grid3x3 },
+        ].map(({ label, data, icon: Icon }, i) => (
+          <div key={i} className="bg-white border border-[#E5DFCB] rounded-md p-4 shadow-[0_6px_20px_-14px_rgba(63,91,69,.3)]">
+            <span className="dm-mono text-[10px] text-[#8C8775] mb-2 block uppercase tracking-wider">{label}</span>
+            {data ? (
+              <Plot data={data} useResizeHandler style={{ width: '100%' }} layout={{
+                autosize: true, height: 280, margin: { t: 10, r: 10, b: 40, l: 40 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { color: '#8C8775' },
+                ...(i === 1 ? {
+                  xaxis: { title: { text: 'PC1' }, gridcolor: 'rgba(63,91,69,.12)' },
+                  yaxis: { title: { text: 'PC2' }, gridcolor: 'rgba(63,91,69,.12)' },
+                } : {}),
+              }} />
+            ) : (
+              <div className="h-56 flex flex-col items-center justify-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-[#FAF6EC] border border-[#E5DFCB] flex items-center justify-center">
+                  <Icon size={20} className="text-[#3F5B45]" />
+                </div>
+                <span className="text-sm text-[#8C8775] italic">Click Generate to load</span>
+              </div>
+            )}
           </div>
-          <span className="text-sm font-medium text-stone-600">PCA Scatter</span>
-          <span className="text-xs text-stone-400">Dimensionality reduction</span>
-        </div>
-        <div className="h-56 bg-white border border-stone-200/80 rounded-2xl flex flex-col items-center justify-center gap-3 shadow-sm shadow-stone-200/50 hover:shadow-md transition-shadow cursor-pointer group">
-          <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center group-hover:bg-stone-200 transition-colors">
-            <Grid3x3 size={24} className="text-stone-500" />
-          </div>
-          <span className="text-sm font-medium text-stone-600">Heatmap</span>
-          <span className="text-xs text-stone-400">Correlation matrix</span>
-        </div>
+        ))}
       </div>
       <div className="flex justify-center">
-        <button onClick={visual} className="bg-gradient-to-r from-stone-800 to-stone-900 hover:from-stone-700 hover:to-stone-800 text-white text-sm font-medium rounded-xl px-8 py-3 transition-all shadow-lg shadow-stone-900/20 hover:shadow-xl flex items-center gap-2">
+        <button onClick={() => { visual(); setVisible(false); }}
+          className="dm-mono bg-[#3F5B45] hover:bg-[#34492c] text-[#FAF6EC] text-xs font-bold uppercase tracking-wider rounded-md px-8 py-3 shadow-sm flex items-center gap-2 transition-all">
           Generate
         </button>
       </div>
     </div>
   </div>
+</>
 )
 }
 export default App
