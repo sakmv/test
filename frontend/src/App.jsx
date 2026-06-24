@@ -28,6 +28,8 @@ const[filenames,setFilenames]=useState([])
 const[matrix,setMatrix]=useState([])
 const[columns,setColumns]=useState([])
 const [pca, setPca] = useState([])
+const [generating,setGenerating]=useState(false)
+
 
 const getFiles = async ()=>{
   const f = await fetch(`${BASE_URL}/files`,{
@@ -127,6 +129,7 @@ const queryAsk = async ()=>{
 const visual=async()=>{
   try{
     setLoading(true)
+    setGenerating(true)
     if(filenames.length==0){
       toast.error('No chunks Generated. Upload a file')
       return
@@ -151,6 +154,7 @@ const visual=async()=>{
   }
   finally{
     setLoading(false)
+    setGenerating(false)
   }
 }
 
@@ -172,11 +176,26 @@ return (
       box-decoration-break: clone;
       -webkit-box-decoration-break: clone;
     }
+    @keyframes shimmer {
+      0% { background-position: -600px 0; }
+      100% { background-position: 600px 0; }
+    }
+    .dm-skeleton {
+      background: linear-gradient(90deg, #F4EFE2 25%, #EDE6D4 50%, #F4EFE2 75%);
+      background-size: 600px 100%;
+      animation: shimmer 1.6s infinite linear;
+      border-radius: 4px;
+    }
   `}</style>
 
   <div className="dm-root dm-paper min-h-screen w-full text-[#2B2A25] flex flex-col items-center px-6 py-16 gap-10">
     <Toaster />
-
+    {/* Page header strip */}
+<div className="w-full max-w-3xl mt-4 border border-[#D8D2BD] rounded-sm px-4 py-2 flex items-center gap-3">
+  <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-widest shrink-0">Title:</span><a className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-widest shrink-0" href='https://github.com/sakmv/test'>github_sakmv</a>
+  <div className="flex-1 border-b border-dotted border-[#C9C2AE]" />
+  <span className="dm-mono text-[10px] text-[#8C8775]">noteMind — 6/26</span>
+</div>
     {/* Masthead */}
     <div className="w-full flex flex-col items-center gap-2 text-center">
       <span className="dm-mono text-[10px] uppercase tracking-[0.3em] text-[#C1652F]">Vol. I — Field Notes</span>
@@ -184,7 +203,7 @@ return (
         <div className="w-10 h-10 rounded-full bg-[#3F5B45] flex items-center justify-center shadow-sm">
           <FileText size={18} className="text-[#FAF6EC]" />
         </div>
-        <h1 className="dm-display text-4xl tracking-tight">no</h1>
+        <h1 className="dm-display text-4xl tracking-tight">noteMind</h1>
       </div>
       <p className="text-sm text-[#5C5848] italic">document intelligence, grounded in your sources</p>
       <div className="w-20 h-px bg-[#C9C2AE] mt-1" />
@@ -243,7 +262,7 @@ return (
       </div>
     </div>
 
-    {/* Entries Feed — question + answer + highlighted source, in one card */}
+    {/* Entries Feed */}
     <div className="w-full max-w-3xl flex flex-col gap-4">
       <div className="flex items-center gap-2 px-1">
         <MessagesSquare size={14} className="text-[#3F5B45]" />
@@ -282,13 +301,14 @@ return (
         <div className="flex-1 h-px bg-[#E5DFCB]" />
         <div className="flex items-center gap-2 px-4 py-1.5 bg-[#F2EBD8] rounded-full border border-[#E5DFCB]">
           <Sparkles size={13} className="text-[#3F5B45]" />
-          <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider">Figures</span>
+          <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider">Analytic Figures</span>
         </div>
         <div className="flex-1 h-px bg-[#E5DFCB]" />
       </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[
-          { label: 'Fig. 1 — Chunk Similarity Heatmap', data: matrix.length > 0 && [{ z: matrix, type: 'heatmap', colorscale: [[0,'#FAF6EC'],[0.35,'#E9D9BE'],[0.65,'#C1652F'],[1,'#3F5B45']] }], icon: ScatterChart },
+          { label: 'Fig. 1 — Chunk Cosine Similarity Heatmap', data: matrix.length > 0 && [{ z: matrix, type: 'heatmap', colorscale: [[0,'#FAF6EC'],[0.35,'#E9D9BE'],[0.65,'#C1652F'],[1,'#3F5B45']] }], icon: ScatterChart },
           { label: 'Fig. 2 — Dimensionally Reduced Scatter Plot', data: pca.length > 0 && [{
               x: pca.map(p => p.x), y: pca.map(p => p.y), text: pca.map(p => p.label),
               mode: 'markers+text', type: 'scatter', textposition: 'top center',
@@ -298,7 +318,22 @@ return (
         ].map(({ label, data, icon: Icon }, i) => (
           <div key={i} className="bg-white border border-[#E5DFCB] rounded-md p-4 shadow-[0_6px_20px_-14px_rgba(63,91,69,.3)]">
             <span className="dm-mono text-[10px] text-[#8C8775] mb-2 block uppercase tracking-wider">{label}</span>
-            {data ? (
+
+            {generating ? (
+              <div className="h-56 flex flex-col justify-end gap-2 px-2 pb-3 pt-4">
+                <div className="flex items-end gap-1.5 h-full">
+                  {Array.from({ length: 10 }).map((_, j) => (
+                    <div
+                      key={j}
+                      className="dm-skeleton flex-1 rounded-sm"
+                      style={{ height: `${30 + Math.sin(j * 1.3 + i) * 25 + 25}%`, animationDelay: `${j * 0.07}s` }}
+                    />
+                  ))}
+                </div>
+                <div className="dm-skeleton h-2 w-3/4 mx-auto mt-2" style={{ animationDelay: '0.3s' }} />
+                <div className="dm-skeleton h-2 w-1/2 mx-auto" style={{ animationDelay: '0.5s' }} />
+              </div>
+            ) : data ? (
               <Plot data={data} useResizeHandler style={{ width: '100%' }} layout={{
                 autosize: true, height: 280, margin: { t: 10, r: 10, b: 40, l: 40 },
                 paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { color: '#8C8775' },
@@ -318,10 +353,20 @@ return (
           </div>
         ))}
       </div>
+
       <div className="flex justify-center">
-        <button onClick={() => { visual(); setVisible(false); }}
-          className="dm-mono bg-[#3F5B45] hover:bg-[#34492c] text-[#FAF6EC] text-xs font-bold uppercase tracking-wider rounded-md px-8 py-3 shadow-sm flex items-center gap-2 transition-all">
-          Generate
+        <button
+          onClick={() => { visual(); setVisible(false); }}
+          disabled={loading || generating}
+          className="dm-mono bg-[#3F5B45] hover:bg-[#34492c] disabled:bg-[#B9B6A8] text-[#FAF6EC] text-xs font-bold uppercase tracking-wider rounded-md px-8 py-3 shadow-sm flex items-center gap-2 transition-all">
+          {generating ? (
+            <>
+              <svg className="animate-spin" width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+              Generating…
+            </>
+          ) : 'Generate'}
         </button>
       </div>
     </div>
