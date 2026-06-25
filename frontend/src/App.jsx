@@ -295,7 +295,7 @@ return (
       </div>
     </div>
 
-    {/* Appendix — Figures */}
+    {/*Figures */}
     <div className="w-full max-w-3xl flex flex-col gap-6">
       <div className="flex items-center gap-4">
         <div className="flex-1 h-px bg-[#E5DFCB]" />

@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import json
 from rerank import reranker
+from bm25 import bm
 
 app = FastAPI()
 
@@ -65,9 +66,18 @@ async def query_res(query: Query):
     txt = query.text
     collection = getCollection(query.sessionid)
     retrieved = retrieve(txt, collection)
-    print("RETRIEVED CHUNKS:", retrieved['documents'])
-    reranked=reranker(retrieved,txt)
+    bms=bm(retrieved,txt)
+    merged={"documents":[retrieved["documents"][0]+bms["documents"][0]],
+            "metadatas":[retrieved["metadatas"][0]+bms["metadatas"][0]]
+            }
+
+    reranked=reranker(merged,txt)
+    print("RETRIEVED---")
+    print(retrieved)
+    print("RERANKED----")
     print(reranked)
+    print('BMS---')
+    print(bms)
     def event_stream():
         full_response = ""
         for token in getPrompt(txt, reranked, query.memory):

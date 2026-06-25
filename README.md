@@ -8,7 +8,7 @@
 
 ---
 
-## 2. Cross-Encoder Re-ranking
+## 2. Cross-Encoder Re-ranking  done
 - Uses a **cross-encoder model to re-score retrieved chunks**
 - Improves ranking quality by evaluating query–chunk pairs jointly
 - Enhances final context relevance before LLM generation
