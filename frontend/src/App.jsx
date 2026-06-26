@@ -1,5 +1,5 @@
 import { useState,useRef,useEffect } from 'react'
-import { FileText, Paperclip, Upload, Search, MessagesSquare, Quote, Sparkles, ScatterChart, Grid3x3, Zap } from "lucide-react";
+import { X,FileText, Paperclip, Upload, Search, MessagesSquare, Quote, Sparkles, ScatterChart, Grid3x3, Zap } from "lucide-react";
 import './index.css'
 import toast, { Toaster } from 'react-hot-toast';
 import Plot from 'react-plotly.js'
