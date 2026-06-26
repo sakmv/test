@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 import json
 from rerank import reranker
 from bm25 import bm
+from dedupe import dupes
 
 app = FastAPI()
 
@@ -67,9 +68,11 @@ async def query_res(query: Query):
     collection = getCollection(query.sessionid)
     retrieved = retrieve(txt, collection)
     bms=bm(retrieved,txt)
-    merged={"documents":[retrieved["documents"][0]+bms["documents"][0]],
-            "metadatas":[retrieved["metadatas"][0]+bms["metadatas"][0]]
-            }
+
+    docs,meta=dupes(retrieved["documents"][0]+bms["documents"][0],retrieved["metadatas"][0]+bms["metadatas"][0])
+
+    merged={"documents":[docs],
+            "metadatas":[meta]}
 
     reranked=reranker(merged,txt)
     print("RETRIEVED---")
