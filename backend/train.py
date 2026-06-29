@@ -1,73 +1,85 @@
-# import torch
+import torch
 from encoder import encoder, embed_model, pe, tokenizer,get_embedding
 import numpy as np
-# print("before import")
-# from datasets import load_dataset
-# from torch.utils.data import DataLoader
-# import torch.nn.functional as F
+print("before import")
+from datasets import load_dataset
+from torch.utils.data import DataLoader
+import torch.nn.functional as F
+from sentence_transformers import SentenceTransformer
 
+model=SentenceTransformer("all-MiniLM-L6-v2")
 #ORIGIAL TRAINING EASY NEGS
 
-# print("before switchig")
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# encoder.to(device)
-# embed_model.to(device)
-# pe.to(device)
-# print(device)
-# def infonce_loss(query_emb, pos_emb, temperature=0.07):
-#     query_emb = F.normalize(query_emb, dim=-1)
-#     pos_emb = F.normalize(pos_emb, dim=-1)
-#     logits = query_emb @ pos_emb.T / temperature
-#     labels = torch.arange(logits.shape[0]).to(device)
-#     return F.cross_entropy(logits, labels)
+print("before switchig")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+encoder.to(device)
+embed_model.to(device)
+pe.to(device)
+print(device)
+def infonce_loss(query_emb, pos_emb, temperature=0.07):
+    query_emb = F.normalize(query_emb, dim=-1)
+    pos_emb = F.normalize(pos_emb, dim=-1)
+    logits = query_emb @ pos_emb.T / temperature
+    labels = torch.arange(logits.shape[0]).to(device)
+    return F.cross_entropy(logits, labels)
 
-# optimizer = torch.optim.AdamW(
-#     list(encoder.parameters()) + list(embed_model.parameters()),
-#     lr=2e-4
-# )
+optimizer = torch.optim.AdamW(
+    list(encoder.parameters()) + list(embed_model.parameters()),
+    lr=2e-4
+)
 
-# def get_embeddings_batch(texts):
-#     tokens = tokenizer(texts, return_tensors="pt", truncation=True, max_length=512, padding=True)
-#     tokens = {k: v.to(device) for k, v in tokens.items()}
-#     x = embed_model(tokens["input_ids"])
-#     x = pe(x)
-#     out = encoder(x)
-#     return out.mean(dim=1)
+def get_embeddings_batch(texts):
+    tokens = tokenizer(texts, return_tensors="pt", truncation=True, max_length=512, padding=True)
+    tokens = {k: v.to(device) for k, v in tokens.items()}
+    x = embed_model(tokens["input_ids"])
+    x = pe(x)
+    out = encoder(x)
+    return out.mean(dim=1)
 
-# def train_step(queries, positives):
-#     optimizer.zero_grad()
-#     q_embs = get_embeddings_batch(list(queries))
-#     p_embs = get_embeddings_batch(list(positives))
-#     loss = infonce_loss(q_embs, p_embs)
-#     loss.backward()
-#     optimizer.step()
-#     return loss.item()
-# print("before loading")
-# ds = load_dataset("microsoft/ms_marco", "v2.1", split="train[:500000]")
-# print("after loading")
-# pairs = []
-# for row in ds:
-#     query = row["query"]
-#     for passage, is_selected in zip(row["passages"]["passage_text"], row["passages"]["is_selected"]):
-#         if is_selected:
-#             pairs.append((query, passage))
-#             break
-# print("all fntions")
-# loader = DataLoader(pairs, batch_size=16, shuffle=True)
-# encoder.train()
-# embed_model.train()
-# print("training begins")
-# for epoch in range(5):
-#     total_loss = 0
-#     for queries, positives in loader:
-#         loss = train_step(list(queries), list(positives))
-#         total_loss += loss
-#     print(f"Epoch {epoch+1} loss: {total_loss/len(loader):.4f}")
+def train_step(queries, positives):
+    optimizer.zero_grad()
+    q_embs = get_embeddings_batch(list(queries))
+    p_embs = get_embeddings_batch(list(positives))
+    loss = infonce_loss(q_embs, p_embs)
+    loss.backward()
+    optimizer.step()
+    return loss.item()
+print("before loading")
+ds = load_dataset("microsoft/ms_marco", "v2.1", split="train[:500000]")
+print("after loading")
+pairs = []
+for row in ds:
+    query = row["query"]
+    for passage, is_selected in zip(row["passages"]["passage_text"], row["passages"]["is_selected"]):
+        if is_selected:
+            pairs.append((query, passage))
+            break
+print("all fntions")
+loader = DataLoader(pairs, batch_size=16, shuffle=True)
+encoder.train()
+embed_model.train()
+print("training begins")
+for epoch in range(5):
+    total_loss = 0
+    for queries, positives in loader:
+        loss = train_step(list(queries), list(positives))
+        total_loss += loss
+    print(f"Epoch {epoch+1} loss: {total_loss/len(loader):.4f}")
 
-# torch.save({
-#     'encoder': encoder.state_dict(),
-#     'embed_model': embed_model.state_dict(),
-# }, 'encoder_trained.pt')
+torch.save({
+    'encoder': encoder.state_dict(),
+    'embed_model': embed_model.state_dict(),
+}, 'encoder_trained.pt')
+
+# p1=get_embedding("what causes earthquakes")
+# x1=model.encode("what causes earthquakes")
+# x2=model.encode("Earthquakes are caused by the sudden release of energy in the Earth's crust, often due to movement along fault lines where tectonic plates meet.")
+# p2=get_embedding("Earthquakes are caused by the sudden release of energy in the Earth's crust, often due to movement along fault lines where tectonic plates meet.")
+# r=np.dot(p1,p2)
+# p=np.dot(x1,x2)
+# print(f"my model {r}. Sentence transformers : {p}")
+
+
 
 #HARD NEGS
 
@@ -186,9 +198,3 @@ import numpy as np
 #     'encoder': encoder.state_dict(),
 #     'embed_model': embed_model.state_dict(),
 # }, 'encoder_trained_hardneg.pt')
-
-p1=get_embedding("what causes earthquakes")
-p2=get_embedding("Earthquakes are caused by the sudden release of energy in the Earth's crust, often due to movement along fault lines where tectonic plates meet.")
-r=np.dot(p1,p2)
-print(r)
-# WORKED FABULOUSLY YAA WOHHOH

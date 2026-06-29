@@ -13,6 +13,7 @@ import json
 from rerank import reranker
 from bm25 import bm
 from dedupe import dupes
+from claim import checkClaim
 
 app = FastAPI()
 
@@ -102,3 +103,44 @@ async def visualise(sesh:Session):
         "matt":emat,
         "pca":pca_points
     }
+
+@app.post("/claim")
+async def claims(query:Query):
+    entailment=[]
+    neutral=[]
+    contradiction=[]
+    txt = query.text
+    collection = getCollection(query.sessionid)
+    retrieved = retrieve(txt, collection)
+    bms=bm(retrieved,txt)
+    docs,meta=dupes(retrieved["documents"][0]+bms["documents"][0],retrieved["metadatas"][0]+bms["metadatas"][0])
+    merged={"documents":[docs],
+            "metadatas":[meta]}
+    reranked=reranker(merged,txt)
+    print(reranked)
+    score= checkClaim(reranked["documents"],txt)
+    for i,s in enumerate(score):
+        if (s[0]["label"]=="entailment") and (s[0]["score"] > 0.5) :
+            entailment.append((reranked["documents"][i],s[0]["score"]))
+        elif (s[0]["label"]=="contradiction") and (s[0]["score"] > 0.5):
+            contradiction.append((reranked["documents"][i],s))
+        elif (s[0]["label"]=="neutral") and (s[0]["score"] > 0.5):
+            neutral.append((reranked["documents"][i],s))
+    if entailment:
+        best=max(entailment,key=lambda x:x[1])
+        return {
+            "label":"entailment","documents":best[0]
+        }
+    elif contradiction:
+        best=max(contradiction,key=lambda x:x[1])
+        return {
+            "label":"contradiction","documents":best[0]
+        } 
+    if neutral:
+        best=max(neutral,key=lambda x:x[1])
+        return {
+            "label":"neutral","documents":best[0]
+        }
+
+    
+

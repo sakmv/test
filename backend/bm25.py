@@ -16,7 +16,8 @@ def bm(chunks,query):
     retriever = bm25s.BM25()
     retriever.index(toks)
     qt=bm25s.tokenize([query],stemmer=stem)
-    results,scores=retriever.retrieve(qt,k=5) # top 5
+    x = min(5, len(res))
+    results,scores=retriever.retrieve(qt,k=x) # top 5
 
     return {
         'documents':[[chunks['documents'][0][i] for i in results[0]]],

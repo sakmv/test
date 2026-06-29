@@ -17,6 +17,8 @@ const getSession =()=>{
   }
   return sid
 }
+const[claim,setClaim]=useState(null)
+const[uploadLoad,setUploadLoad]=useState(false)
 const [visible,setVisible]=useState(true)
 const fileInputRef = useRef(null)
 const [file,setFile]=useState([])
@@ -29,7 +31,7 @@ const[matrix,setMatrix]=useState([])
 const[columns,setColumns]=useState([])
 const [pca, setPca] = useState([])
 const [generating,setGenerating]=useState(false)
-
+const[userClaim,setUserClaim]=useState("")
 
 const getFiles = async ()=>{
   const f = await fetch(`${BASE_URL}/files`,{
@@ -55,6 +57,7 @@ const uploadFile = async ()=>{
   formdata.append("sessionid",sessionId)
   file.forEach((f)=>formdata.append("file",f))
   try{
+    setUploadLoad(true)
     setLoading(true)
     const stat = await fetch(`${BASE_URL}/upload`,{
       method:'POST',
@@ -77,6 +80,7 @@ const uploadFile = async ()=>{
   }
   finally{
     setLoading(false)
+    setUploadLoad(false)
   }
 }
 
@@ -158,6 +162,29 @@ const visual=async()=>{
   }
 }
 
+const claims = async ()=>{
+  try{
+    setLoading(true)
+  const res = await fetch(`${BASE_URL}/claim`,{
+    method:"POST",
+    mode:"cors",
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text:query,sessionid:sessionId,memory:responseList})
+  })
+  if(!res.ok){
+    toast.error(res.status)
+    throw new Error(`${res.status}`)
+  }
+  const data = await res.json()
+  setClaim({"label":data.label,"documents":data.documents})
+}catch(err){
+  toast.error(`${err}`)
+  return
+}finally{
+setLoading(false)
+}
+}
+
 return (
 <>
   <style>{`
@@ -186,8 +213,15 @@ return (
       animation: shimmer 1.6s infinite linear;
       border-radius: 4px;
     }
+    @keyframes indeterminate {
+      0% { margin-left: -40%; width: 40%; }
+      100% { margin-left: 100%; width: 40%; }
+    }
+    .dm-indeterminate {
+      animation: indeterminate 1.4s ease-in-out infinite;
+    }
   `}</style>
-
+ 
   <div className="dm-root dm-paper min-h-screen w-full text-[#2B2A25] flex flex-col items-center px-6 py-16 gap-10">
     <Toaster />
     {/* Page header strip */}
@@ -208,10 +242,10 @@ return (
       <p className="text-sm text-[#5C5848] italic">document intelligence, grounded in your sources</p>
       <div className="w-20 h-px bg-[#C9C2AE] mt-1" />
     </div>
-
+ 
     {/* Intake Card */}
     <div className="w-full max-w-3xl bg-white border border-[#E5DFCB] rounded-md p-6 shadow-[0_8px_30px_-12px_rgba(63,91,69,.25)] flex flex-col gap-5">
-
+ 
       <div className="flex items-center gap-3">
         <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider w-16">Files</span>
         <div className="flex-1 flex items-center gap-3">
@@ -226,25 +260,39 @@ return (
           </button>
         </div>
       </div>
-
+ 
       {file.length > 0 && (
-        <div className="flex flex-wrap gap-2 pl-[4.5rem]">
-          {file.map((f, idx) => (
-            <span key={idx} className="dm-mono text-xs bg-[#EFE4D4] text-[#8A4A1F] px-3 py-1 rounded-md border border-[#C1652F]/30">{f.name}</span>
-          ))}
+        <div className="flex flex-col gap-1.5 pl-[4.5rem]">
+          <span className="dm-mono text-[9px] uppercase tracking-wider text-[#C1652F]">Selected</span>
+          <div className="flex flex-wrap gap-2">
+            {file.map((f, idx) => (
+              <span key={idx} className="dm-mono text-xs bg-[#EFE4D4] text-[#8A4A1F] px-3 py-1 rounded-md border border-[#C1652F]/30">{f.name}</span>
+            ))}
+          </div>
         </div>
       )}
-
+ 
       {filenames.length > 0 && (
-        <div className="flex flex-wrap gap-2 pl-[4.5rem]">
-          {filenames.map((name, idx) => (
-            <span key={idx} className="dm-mono text-xs bg-[#F4F0E4] px-3 py-1 rounded-md border border-[#E5DFCB]">{name}</span>
-          ))}
+        <div className="flex flex-col gap-1.5 pl-[4.5rem]">
+          <span className="dm-mono text-[9px] uppercase tracking-wider text-[#3F5B45]">Uploaded</span>
+          <div className="flex flex-wrap gap-2">
+            {filenames.map((name, idx) => (
+              <span key={idx} className="dm-mono text-xs bg-[#F4F0E4] px-3 py-1 rounded-md border border-[#E5DFCB]">{name}</span>
+            ))}
+          </div>
         </div>
       )}
-
+ 
+      {uploadLoad && (
+        <div className="pl-[4.5rem] overflow-hidden">
+          <div className="w-full h-0.5 bg-[#E5DFCB] rounded-full overflow-hidden">
+            <div className="h-full bg-[#3F5B45] rounded-full dm-indeterminate" />
+          </div>
+        </div>
+      )}
+ 
       <div className="h-px bg-[#EFE9D8]" />
-
+ 
       <div className="flex items-center gap-3">
         <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider w-16">Ask</span>
         <div className="flex-1 flex items-center gap-3">
@@ -261,7 +309,7 @@ return (
         </div>
       </div>
     </div>
-
+ 
     {/* Entries Feed */}
     <div className="w-full max-w-3xl flex flex-col gap-4">
       <div className="flex items-center gap-2 px-1">
@@ -270,7 +318,7 @@ return (
         {responseList.length > 0 && <span className="dm-mono text-[10px] text-[#8C8775]">({responseList.length})</span>}
         <div className="flex-1 h-px bg-[#E5DFCB] ml-2" />
       </div>
-
+ 
       <div className="dm-scroll flex flex-col gap-4 max-h-[34rem] overflow-y-auto pr-1">
         {responseList.map((res, index) => (
           <div key={index} className="bg-white border border-[#E5DFCB] rounded-md p-5 flex flex-col gap-3 shadow-[0_6px_20px_-14px_rgba(63,91,69,.3)]">
@@ -285,7 +333,7 @@ return (
             </p>
           </div>
         ))}
-
+ 
         {responseList.length === 0 && (
           <div className="bg-white border border-dashed border-[#D8D2BD] rounded-md py-12 flex flex-col items-center gap-2">
             <Quote size={18} className="text-[#C9C2AE]" />
@@ -294,7 +342,7 @@ return (
         )}
       </div>
     </div>
-
+ 
     {/*Figures */}
     <div className="w-full max-w-3xl flex flex-col gap-6">
       <div className="flex items-center gap-4">
@@ -305,7 +353,7 @@ return (
         </div>
         <div className="flex-1 h-px bg-[#E5DFCB]" />
       </div>
-
+ 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[
           { label: 'Fig. 1 — Chunk Cosine Similarity Heatmap', data: matrix.length > 0 && [{ z: matrix, type: 'heatmap', colorscale: [[0,'#FAF6EC'],[0.35,'#E9D9BE'],[0.65,'#C1652F'],[1,'#3F5B45']] }], icon: ScatterChart },
@@ -318,7 +366,7 @@ return (
         ].map(({ label, data, icon: Icon }, i) => (
           <div key={i} className="bg-white border border-[#E5DFCB] rounded-md p-4 shadow-[0_6px_20px_-14px_rgba(63,91,69,.3)]">
             <span className="dm-mono text-[10px] text-[#8C8775] mb-2 block uppercase tracking-wider">{label}</span>
-
+ 
             {generating ? (
               <div className="h-56 flex flex-col justify-end gap-2 px-2 pb-3 pt-4">
                 <div className="flex items-end gap-1.5 h-full">
@@ -353,7 +401,7 @@ return (
           </div>
         ))}
       </div>
-
+ 
       <div className="flex justify-center">
         <button
           onClick={() => { visual(); setVisible(false); }}
@@ -370,7 +418,80 @@ return (
         </button>
       </div>
     </div>
+{/* Claim Verification */}
+    <div className="w-full max-w-3xl flex flex-col gap-6">
+      <div className="flex items-center gap-4">
+        <div className="flex-1 h-px bg-[#E5DFCB]" />
+        <div className="flex items-center gap-2 px-4 py-1.5 bg-[#F2EBD8] rounded-full border border-[#E5DFCB]">
+          <Sparkles size={13} className="text-[#3F5B45]" />
+          <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider">Claim Verification</span>
+        </div>
+        <div className="flex-1 h-px bg-[#E5DFCB]" />
+      </div>
+
+      <div className="w-full bg-white border border-[#E5DFCB] rounded-md overflow-hidden shadow-[0_8px_30px_-12px_rgba(63,91,69,.25)]">
+
+        <div className="p-7 flex flex-col gap-3">
+          <span className="dm-mono text-[9px] uppercase tracking-widest text-[#8C8775]">Claim</span>
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8775]" />
+              <input
+                className="w-full bg-[#FAF6EC] border border-[#E5DFCB] rounded-md pl-11 pr-4 py-3 text-sm text-[#2B2A25] placeholder-[#8C8775] focus:outline-none focus:ring-1 focus:ring-[#3F5B45]/40 focus:border-[#3F5B45]/50 transition-all"
+                style={{fontFamily:"'Lora',serif"}}
+                type="text" placeholder="Enter a claim to verify against your documents..."
+                value={query} onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && claims()} />
+            </div>
+            <button
+              className="bg-[#FAF6EC] hover:bg-[#F2EBD8] disabled:bg-[#E5DFCB] disabled:text-[#8C8775] text-[#2B2A25] dm-mono text-[10px] font-bold uppercase tracking-wider rounded-md px-6 border border-[#E5DFCB] hover:border-[#C9C2AE] transition-all"
+              onClick={claims} disabled={loading}>Verify</button>
+          </div>
+        </div>
+
+        <div className="h-px bg-[#EFE9D8]" />
+
+        {claim ? (
+          <div className="p-7 flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
+                claim.label === 'entailment' ? 'bg-[#EAF3DE] text-[#3F5B45]' :
+                claim.label === 'contradiction' ? 'bg-[#FAE8E0] text-[#C1652F]' : 'bg-[#F4F0E4] text-[#8C8775]'
+              }`}>
+                {claim.label === 'entailment' ? '✓' : claim.label === 'contradiction' ? '✗' : '—'}
+              </div>
+              <span className={`dm-mono text-[10px] uppercase tracking-widest font-bold ${
+                claim.label === 'entailment' ? 'text-[#3F5B45]' :
+                claim.label === 'contradiction' ? 'text-[#C1652F]' : 'text-[#8C8775]'
+              }`}>
+                {claim.label === 'entailment' ? 'Supported' :
+                 claim.label === 'contradiction' ? 'Contradicted' : 'Not Found'}
+              </span>
+              <div className="flex-1 h-px bg-[#EFE9D8]" />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="dm-mono text-[9px] uppercase tracking-widest text-[#8C8775]">Supporting passage</span>
+              <div className={`bg-[#FAF6EC] border border-[#E5DFCB] rounded-r-md p-4 ${
+                claim.label === 'entailment' ? 'border-l-2 border-l-[#3F5B45]' :
+                claim.label === 'contradiction' ? 'border-l-2 border-l-[#C1652F]' : 'border-l-2 border-l-[#8C8775]'
+              }`}>
+                <p className="dm-display italic text-sm text-[#5C5848] leading-relaxed">
+                  <Quote size={11} className="inline text-[#C9C2AE] -mt-1 mr-1" />
+                  {claim.documents}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-7 flex items-center justify-center opacity-40">
+            <span className="dm-display italic text-sm text-[#8C8775]">Verdict will appear here</span>
+          </div>
+        )}
+      </div>
+    </div>
   </div>
+  
 </>
 )
 }
