@@ -1,5 +1,5 @@
 import { useState,useRef,useEffect } from 'react'
-import { X,FileText, Paperclip, Upload, Search, MessagesSquare, Quote, Sparkles, ScatterChart, Grid3x3, Zap } from "lucide-react";
+import {Download, X,FileText, Paperclip, Upload, Search, MessagesSquare, Quote, Sparkles, ScatterChart, Grid3x3, Zap } from "lucide-react";
 import './index.css'
 import toast, { Toaster } from 'react-hot-toast';
 import Plot from 'react-plotly.js'
@@ -185,6 +185,39 @@ setLoading(false)
 }
 }
 
+
+const download= async ()=>{
+  try{
+    setLoading(true)
+  const status = await fetch(`${BASE_URL}/download`,{
+    method:"POST",
+    mode:"cors",
+    body:JSON.stringify({res:responseList}),
+    headers:{'Content-Type':'application/json'}
+  })
+  if(!status.ok){
+    throw new Error(`${status.status}`)
+  }
+   const blob = await status.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'notemind_session.txt'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+
+}
+  catch(err){
+    toast.error(`${err}`)
+    return
+  } finally{
+    setLoading(false)
+  }
+
+}
+
+
 return (
 <>
   <style>{`
@@ -221,15 +254,17 @@ return (
       animation: indeterminate 1.4s ease-in-out infinite;
     }
   `}</style>
- 
+
   <div className="dm-root dm-paper min-h-screen w-full text-[#2B2A25] flex flex-col items-center px-6 py-16 gap-10">
     <Toaster />
     {/* Page header strip */}
-<div className="w-full max-w-3xl mt-4 border border-[#D8D2BD] rounded-sm px-4 py-2 flex items-center gap-3">
-  <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-widest shrink-0">Title:</span><a className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-widest shrink-0" href='https://github.com/sakmv/test'>github_sakmv</a>
-  <div className="flex-1 border-b border-dotted border-[#C9C2AE]" />
-  <span className="dm-mono text-[10px] text-[#8C8775]">noteMind — 6/26</span>
-</div>
+    <div className="w-full max-w-3xl mt-4 border border-[#D8D2BD] rounded-sm px-4 py-2 flex items-center gap-3">
+      <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-widest shrink-0">Title:</span>
+      <a className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-widest shrink-0" href='https://github.com/sakmv/test'>github_sakmv</a>
+      <div className="flex-1 border-b border-dotted border-[#C9C2AE]" />
+      <span className="dm-mono text-[10px] text-[#8C8775]">noteMind — 6/26</span>
+    </div>
+
     {/* Masthead */}
     <div className="w-full flex flex-col items-center gap-2 text-center">
       <span className="dm-mono text-[10px] uppercase tracking-[0.3em] text-[#C1652F]">Vol. I — Field Notes</span>
@@ -242,10 +277,10 @@ return (
       <p className="text-sm text-[#5C5848] italic">document intelligence, grounded in your sources</p>
       <div className="w-20 h-px bg-[#C9C2AE] mt-1" />
     </div>
- 
+
     {/* Intake Card */}
     <div className="w-full max-w-3xl bg-white border border-[#E5DFCB] rounded-md p-6 shadow-[0_8px_30px_-12px_rgba(63,91,69,.25)] flex flex-col gap-5">
- 
+
       <div className="flex items-center gap-3">
         <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider w-16">Files</span>
         <div className="flex-1 flex items-center gap-3">
@@ -260,7 +295,7 @@ return (
           </button>
         </div>
       </div>
- 
+
       {file.length > 0 && (
         <div className="flex flex-col gap-1.5 pl-[4.5rem]">
           <span className="dm-mono text-[9px] uppercase tracking-wider text-[#C1652F]">Selected</span>
@@ -271,7 +306,7 @@ return (
           </div>
         </div>
       )}
- 
+
       {filenames.length > 0 && (
         <div className="flex flex-col gap-1.5 pl-[4.5rem]">
           <span className="dm-mono text-[9px] uppercase tracking-wider text-[#3F5B45]">Uploaded</span>
@@ -282,7 +317,7 @@ return (
           </div>
         </div>
       )}
- 
+
       {uploadLoad && (
         <div className="pl-[4.5rem] overflow-hidden">
           <div className="w-full h-0.5 bg-[#E5DFCB] rounded-full overflow-hidden">
@@ -290,9 +325,9 @@ return (
           </div>
         </div>
       )}
- 
+
       <div className="h-px bg-[#EFE9D8]" />
- 
+
       <div className="flex items-center gap-3">
         <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider w-16">Ask</span>
         <div className="flex-1 flex items-center gap-3">
@@ -309,7 +344,7 @@ return (
         </div>
       </div>
     </div>
- 
+
     {/* Entries Feed */}
     <div className="w-full max-w-3xl flex flex-col gap-4">
       <div className="flex items-center gap-2 px-1">
@@ -317,8 +352,16 @@ return (
         <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider">Entries</span>
         {responseList.length > 0 && <span className="dm-mono text-[10px] text-[#8C8775]">({responseList.length})</span>}
         <div className="flex-1 h-px bg-[#E5DFCB] ml-2" />
+        {responseList.length > 0 && (
+          <button
+            onClick={download}
+            disabled={loading}
+            className="dm-mono text-[9px] font-bold text-[#3F5B45] uppercase tracking-wider flex items-center gap-1.5 hover:text-[#C1652F] disabled:text-[#B9B6A8] transition-all">
+            <Download size={12} /> Export
+          </button>
+        )}
       </div>
- 
+
       <div className="dm-scroll flex flex-col gap-4 max-h-[34rem] overflow-y-auto pr-1">
         {responseList.map((res, index) => (
           <div key={index} className="bg-white border border-[#E5DFCB] rounded-md p-5 flex flex-col gap-3 shadow-[0_6px_20px_-14px_rgba(63,91,69,.3)]">
@@ -333,7 +376,7 @@ return (
             </p>
           </div>
         ))}
- 
+
         {responseList.length === 0 && (
           <div className="bg-white border border-dashed border-[#D8D2BD] rounded-md py-12 flex flex-col items-center gap-2">
             <Quote size={18} className="text-[#C9C2AE]" />
@@ -342,7 +385,7 @@ return (
         )}
       </div>
     </div>
- 
+
     {/*Figures */}
     <div className="w-full max-w-3xl flex flex-col gap-6">
       <div className="flex items-center gap-4">
@@ -353,7 +396,7 @@ return (
         </div>
         <div className="flex-1 h-px bg-[#E5DFCB]" />
       </div>
- 
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[
           { label: 'Fig. 1 — Chunk Cosine Similarity Heatmap', data: matrix.length > 0 && [{ z: matrix, type: 'heatmap', colorscale: [[0,'#FAF6EC'],[0.35,'#E9D9BE'],[0.65,'#C1652F'],[1,'#3F5B45']] }], icon: ScatterChart },
@@ -366,7 +409,7 @@ return (
         ].map(({ label, data, icon: Icon }, i) => (
           <div key={i} className="bg-white border border-[#E5DFCB] rounded-md p-4 shadow-[0_6px_20px_-14px_rgba(63,91,69,.3)]">
             <span className="dm-mono text-[10px] text-[#8C8775] mb-2 block uppercase tracking-wider">{label}</span>
- 
+
             {generating ? (
               <div className="h-56 flex flex-col justify-end gap-2 px-2 pb-3 pt-4">
                 <div className="flex items-end gap-1.5 h-full">
@@ -401,7 +444,7 @@ return (
           </div>
         ))}
       </div>
- 
+
       <div className="flex justify-center">
         <button
           onClick={() => { visual(); setVisible(false); }}
@@ -418,7 +461,8 @@ return (
         </button>
       </div>
     </div>
-{/* Claim Verification */}
+
+    {/* Claim Verification */}
     <div className="w-full max-w-3xl flex flex-col gap-6">
       <div className="flex items-center gap-4">
         <div className="flex-1 h-px bg-[#E5DFCB]" />
@@ -490,8 +534,24 @@ return (
         )}
       </div>
     </div>
+
+    {/* Capabilities */}
+    <div className="w-full max-w-3xl flex flex-wrap items-center justify-center gap-2.5">
+      {[
+        { label: 'Custom-Trained Encoder', icon: Sparkles },
+        { label: 'Hybrid Retrieval', icon: Search },
+        { label: 'Cross-Encoder Reranking', icon: ScatterChart },
+        { label: 'Claim Verification', icon: Quote },
+        { label: 'Streaming Responses', icon: MessagesSquare },
+      ].map(({ label, icon: Icon }, i) => (
+        <div key={i} className="flex items-center gap-2 px-4 py-1.5 bg-[#F2EBD8] rounded-full border border-[#C1652F]/40">
+          <Icon size={13} className="text-[#C1652F]" />
+          <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider">{label}</span>
+        </div>
+      ))}
+    </div>
   </div>
-  
+
 </>
 )
 }

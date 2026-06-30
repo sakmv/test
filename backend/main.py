@@ -14,6 +14,8 @@ from rerank import reranker
 from bm25 import bm
 from dedupe import dupes
 from claim import checkClaim
+from text_splitter import text_splitter
+from fastapi.responses import Response
 
 app = FastAPI()
 
@@ -34,6 +36,9 @@ class Query(BaseModel):
 
 class Session(BaseModel):
     ses:str
+
+class Memory(BaseModel):
+    res:list
 
 @app.post("/files")
 async def getFiles(session:Session):
@@ -103,44 +108,72 @@ async def visualise(sesh:Session):
         "matt":emat,
         "pca":pca_points
     }
+@app.post("/download")
+async def download(mem: Memory):
+    response_list = mem.res
 
+    lines = ["NoteMind - Session Export\n"]
+    for i, entry in enumerate(response_list, 1):
+        lines.append(f"Entry {i:02d}")
+        lines.append(f"Query: {entry.get('query', '')}")
+        lines.append(f"Response: {entry.get('response', '')}")
+        lines.append("-" * 40)
+        lines.append("")
+
+    content = "\n".join(lines)
+
+    return Response(
+        content=content,
+        media_type="text/plain",
+        headers={"Content-Disposition": "attachment; filename=notemind_session.txt"}
+    )
 @app.post("/claim")
-async def claims(query:Query):
-    entailment=[]
-    neutral=[]
-    contradiction=[]
+async def claims(query: Query):
+    entailment = []
+    neutral = []
+    contradiction = []
     txt = query.text
     collection = getCollection(query.sessionid)
     retrieved = retrieve(txt, collection)
-    bms=bm(retrieved,txt)
-    docs,meta=dupes(retrieved["documents"][0]+bms["documents"][0],retrieved["metadatas"][0]+bms["metadatas"][0])
-    merged={"documents":[docs],
-            "metadatas":[meta]}
-    reranked=reranker(merged,txt)
-    print(reranked)
-    score= checkClaim(reranked["documents"],txt)
-    for i,s in enumerate(score):
-        if (s[0]["label"]=="entailment") and (s[0]["score"] > 0.5) :
-            entailment.append((reranked["documents"][i],s[0]["score"]))
-        elif (s[0]["label"]=="contradiction") and (s[0]["score"] > 0.5):
-            contradiction.append((reranked["documents"][i],s))
-        elif (s[0]["label"]=="neutral") and (s[0]["score"] > 0.5):
-            neutral.append((reranked["documents"][i],s))
+    bms = bm(retrieved, txt)
+    docs, meta = dupes(
+        retrieved["documents"][0] + bms["documents"][0],
+        retrieved["metadatas"][0] + bms["metadatas"][0]
+    )
+    merged = {"documents": [docs], "metadatas": [meta]}
+    reranked = reranker(merged, txt)
+
+    splitter = text_splitter()
+
+    chunks = []
+    for doc in reranked["documents"][0]:
+        chunks.extend(splitter.rec_chunk(doc, 100, 50))
+
+    score = checkClaim(chunks, txt)
+
+    for i, s in enumerate(score):
+        label = s[0]["label"]
+        conf = s[0]["score"]
+        if conf <= 0.5:
+            continue
+        if label == "entailment":
+            entailment.append((chunks[i], conf))
+        elif label == "contradiction":
+            contradiction.append((chunks[i], conf))
+        elif label == "neutral":
+            neutral.append((chunks[i], conf))
+
     if entailment:
-        best=max(entailment,key=lambda x:x[1])
-        return {
-            "label":"entailment","documents":best[0]
-        }
+        best = max(entailment, key=lambda x: x[1])
+        return {"label": "entailment", "documents": best[0]}
     elif contradiction:
-        best=max(contradiction,key=lambda x:x[1])
-        return {
-            "label":"contradiction","documents":best[0]
-        } 
-    if neutral:
-        best=max(neutral,key=lambda x:x[1])
-        return {
-            "label":"neutral","documents":best[0]
-        }
+        best = max(contradiction, key=lambda x: x[1])
+        return {"label": "contradiction", "documents": best[0]}
+    elif neutral:
+        best = max(neutral, key=lambda x: x[1])
+        return {"label": "neutral", "documents": best[0]}
+
+    return {"label": "neutral", "documents": None}
 
     
 
