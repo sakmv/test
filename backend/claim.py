@@ -3,9 +3,8 @@ from transformers import pipeline
 
 nli=pipeline("text-classification",model="cross-encoder/nli-deberta-v3-small")
 
-def checkClaim(chunks,claim):
-    score=[]
-    for c in chunks:
-        score.append(nli(f"{c}[SEP]{claim}"))
+def checkClaim(chunks, claim):
+    pairs = [{"text": c, "text_pair": claim} for c in chunks]
+    score = nli(pairs)
     print(score)
     return score

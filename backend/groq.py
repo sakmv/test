@@ -21,7 +21,8 @@ Your job is to answer the user's query ONLY using the provided context chunks, a
    No context provided
 3. Do NOT use outside knowledge.
 4. Do NOT guess or hallucinate.
-5. Do NOT add explanations, opinions, or extra commentary. But frame to answer user's query
+5. Do NOT add excess explanations, opinions, or extra commentary. But frame the answer to answer user's query.
+6. Do NOT use jargon or vocabulary outside the scope of the context. Only filler words to form a proper answer is allowed.
 ### INPUT
 Memory: 
 {mem}
@@ -33,7 +34,7 @@ Context Chunks:
 
 ---
 ### OUTPUT FORMAT (STRICT)
-<final Answer using ONLY exact sentences from the context.You can rephrase IF user asked a specific question but the source of knowlledge is purely from the sentences, however TRY TO ANSWER USERS QUERY WITH THE KNOWLLEDGE BASE IF POSSIBLE>
+<final Answer using only the context.You can rephrase IF user asked a specific question but the source of knowlledge is purely from context and memory>
 """,
             model="openai/gpt-oss-20b",stream=True,
            )

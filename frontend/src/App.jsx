@@ -17,7 +17,9 @@ const getSession =()=>{
   }
   return sid
 }
-const[claim,setClaim]=useState(null)
+const [arena, setArena] = useState(null)
+const [arenaLoading, setArenaLoading] = useState(false)
+const [arenaQuery, setArenaQuery] = useState('')
 const[uploadLoad,setUploadLoad]=useState(false)
 const [visible,setVisible]=useState(true)
 const fileInputRef = useRef(null)
@@ -31,7 +33,7 @@ const[matrix,setMatrix]=useState([])
 const[columns,setColumns]=useState([])
 const [pca, setPca] = useState([])
 const [generating,setGenerating]=useState(false)
-const[userClaim,setUserClaim]=useState("")
+
 
 const getFiles = async ()=>{
   const f = await fetch(`${BASE_URL}/files`,{
@@ -86,9 +88,11 @@ const uploadFile = async ()=>{
 
 const queryAsk = async ()=>{
   if(query.trim()){
+    const q=query
   try{
     setLoading(true)
     setResponseList(prev => [{query, response:"", source:""}, ...prev])
+    fetchArena(q)
     const res = await fetch(`${BASE_URL}/query`,{
       method:"POST",
       headers:{'Content-Type':'application/json'},
@@ -162,27 +166,25 @@ const visual=async()=>{
   }
 }
 
-const claims = async ()=>{
-  try{
-    setLoading(true)
-  const res = await fetch(`${BASE_URL}/claim`,{
-    method:"POST",
-    mode:"cors",
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({text:query,sessionid:sessionId,memory:responseList})
-  })
-  if(!res.ok){
-    toast.error(res.status)
-    throw new Error(`${res.status}`)
+const fetchArena = async (q) => {
+  try {
+    setArenaLoading(true)
+    setArenaQuery(q)
+    const res = await fetch(`${BASE_URL}/arena`, {
+      method: "POST", mode: "cors",
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({text:q, sessionid:sessionId, memory:[]})
+    })
+    if(!res.ok) throw new Error(`${res.status}`)
+    const data = await res.json()
+    console.log("ARENA DATA:", data)
+    setArena(data)
+  } catch(err) {
+    console.error("ARENA FETCH FAILED:", err)
+    toast.error(`Arena: ${err}`)
+  } finally {
+    setArenaLoading(false)
   }
-  const data = await res.json()
-  setClaim({"label":data.label,"documents":data.documents})
-}catch(err){
-  toast.error(`${err}`)
-  return
-}finally{
-setLoading(false)
-}
 }
 
 
@@ -253,14 +255,22 @@ return (
     .dm-indeterminate {
       animation: indeterminate 1.4s ease-in-out infinite;
     }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .dm-fadein {
+      animation: fadeIn 0.45s ease-out both;
+    }
   `}</style>
 
   <div className="dm-root dm-paper min-h-screen w-full text-[#2B2A25] flex flex-col items-center px-6 py-16 gap-10">
     <Toaster />
+
     {/* Page header strip */}
     <div className="w-full max-w-3xl mt-4 border border-[#D8D2BD] rounded-sm px-4 py-2 flex items-center gap-3">
       <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-widest shrink-0">Title:</span>
-      <a className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-widest shrink-0" href='https://github.com/sakmv/test'>github_sakmv</a>
+      <a  className="dm-mono text-[10px] hover:text-[#C1652F] font-bold text-[#3F5B45] uppercase tracking-widest shrink-0" href='https://github.com/sakmv/test'>github_sakmv</a>
       <div className="flex-1 border-b border-dotted border-[#C9C2AE]" />
       <span className="dm-mono text-[10px] text-[#8C8775]">noteMind — 6/26</span>
     </div>
@@ -357,14 +367,14 @@ return (
             onClick={download}
             disabled={loading}
             className="dm-mono text-[9px] font-bold text-[#3F5B45] uppercase tracking-wider flex items-center gap-1.5 hover:text-[#C1652F] disabled:text-[#B9B6A8] transition-all">
-            <Download size={12} /> Export
+            <Download size={15} /> Export
           </button>
         )}
       </div>
 
       <div className="dm-scroll flex flex-col gap-4 max-h-[34rem] overflow-y-auto pr-1">
         {responseList.map((res, index) => (
-          <div key={index} className="bg-white border border-[#E5DFCB] rounded-md p-5 flex flex-col gap-3 shadow-[0_6px_20px_-14px_rgba(63,91,69,.3)]">
+          <div key={res.id ?? index} className="bg-white border border-[#E5DFCB] rounded-md p-5 flex flex-col gap-3 shadow-[0_6px_20px_-14px_rgba(63,91,69,.3)]">
             <div className="flex items-start gap-2">
               <span className="dm-display text-[#C9C2AE] text-lg leading-none select-none">{String(index + 1).padStart(2, '0')}</span>
               <p className="text-sm font-semibold leading-relaxed pt-0.5">{res.query}</p>
@@ -386,7 +396,7 @@ return (
       </div>
     </div>
 
-    {/*Figures */}
+    {/* Figures */}
     <div className="w-full max-w-3xl flex flex-col gap-6">
       <div className="flex items-center gap-4">
         <div className="flex-1 h-px bg-[#E5DFCB]" />
@@ -462,74 +472,72 @@ return (
       </div>
     </div>
 
-    {/* Claim Verification */}
-    <div className="w-full max-w-3xl flex flex-col gap-6">
+    {/* Retrieval Pipeline — auto-populated from the latest query */}
+<div className="w-full max-w-3xl flex flex-col gap-6">
       <div className="flex items-center gap-4">
         <div className="flex-1 h-px bg-[#E5DFCB]" />
         <div className="flex items-center gap-2 px-4 py-1.5 bg-[#F2EBD8] rounded-full border border-[#E5DFCB]">
-          <Sparkles size={13} className="text-[#3F5B45]" />
-          <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider">Claim Verification</span>
+          <Zap size={13} className="text-[#3F5B45]" />
+          <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider">Retrieval Pipeline</span>
         </div>
         <div className="flex-1 h-px bg-[#E5DFCB]" />
       </div>
 
-      <div className="w-full bg-white border border-[#E5DFCB] rounded-md overflow-hidden shadow-[0_8px_30px_-12px_rgba(63,91,69,.25)]">
+      <div className="bg-white border border-[#E5DFCB] rounded-md p-6 shadow-[0_8px_30px_-12px_rgba(63,91,69,.25)] flex flex-col gap-5">
 
-        <div className="p-7 flex flex-col gap-3">
-          <span className="dm-mono text-[9px] uppercase tracking-widest text-[#8C8775]">Claim</span>
-          <div className="flex gap-3">
-            <div className="relative flex-1">
-              <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8775]" />
-              <input
-                className="w-full bg-[#FAF6EC] border border-[#E5DFCB] rounded-md pl-11 pr-4 py-3 text-sm text-[#2B2A25] placeholder-[#8C8775] focus:outline-none focus:ring-1 focus:ring-[#3F5B45]/40 focus:border-[#3F5B45]/50 transition-all"
-                style={{fontFamily:"'Lora',serif"}}
-                type="text" placeholder="Enter a claim to verify against your documents..."
-                value={query} onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && claims()} />
-            </div>
-            <button
-              className="bg-[#FAF6EC] hover:bg-[#F2EBD8] disabled:bg-[#E5DFCB] disabled:text-[#8C8775] text-[#2B2A25] dm-mono text-[10px] font-bold uppercase tracking-wider rounded-md px-6 border border-[#E5DFCB] hover:border-[#C9C2AE] transition-all"
-              onClick={claims} disabled={loading}>Verify</button>
+        {arenaQuery && (
+          <div className="flex items-center gap-2">
+            <span className="dm-mono text-[9px] uppercase tracking-widest text-[#8C8775]">Tracing</span>
+            <span className="dm-display italic text-sm text-[#5C5848]">"{arenaQuery}"</span>
           </div>
-        </div>
+        )}
 
-        <div className="h-px bg-[#EFE9D8]" />
+        {arenaLoading ? (
+          <div className="flex flex-col sm:flex-row gap-3">
+            {[0,1,2].map(i => (
+              <div key={i} className="dm-skeleton h-56 rounded-md flex-1" style={{animationDelay: `${i*0.1}s`}} />
+            ))}
+          </div>
+        ) : arena ? (
+          <div className="dm-fadein flex flex-col sm:flex-row items-stretch gap-0">
+            {[
+              { key: 'encoder', label: 'Custom Encoder', sub: 'semantic pass', accent: '#3F5B45', tint: '#EAF3DE' },
+              { key: 'bm25', label: 'BM25 Lexical', sub: 'keyword pass', accent: '#C1652F', tint: '#FAE8E0' },
+              { key: 'reranked', label: 'Combined System', sub: 'cross-encoder reranked', accent: '#B8862F', tint: '#FBF3DD' },
+            ].map(({ key, label, sub, accent, tint }, i, arr) => (
+              <div key={key} className="flex items-stretch flex-1">
+                <div className="flex-1 rounded-md border border-[#E5DFCB] overflow-hidden bg-[#FEFCF6] flex flex-col">
+                  <div className="px-3 py-2 flex flex-col gap-0.5 shrink-0" style={{ backgroundColor: tint, borderBottom: `2px solid ${accent}` }}>
+                    <span className="dm-mono text-[9px] font-bold uppercase tracking-wider" style={{ color: accent }}>{label}</span>
+                    <span className="dm-mono text-[8px] text-[#8C8775] uppercase tracking-wider">{sub}</span>
+                  </div>
+                  <div className="dm-scroll p-2.5 flex flex-col gap-2 flex-1 max-h-56 overflow-y-auto">
+                    {(arena[key]?.documents ?? []).slice(0,3).map((doc, j) => (
+                      <div key={j} className="flex gap-1.5 pb-2 border-b border-[#EFE9D8] last:border-b-0 last:pb-0">
+                        <span className="dm-mono text-[8px] shrink-0 mt-0.5" style={{ color: accent }}>{j+1}</span>
+                        <p className="text-[10.5px] text-[#5C5848] leading-snug">{doc}</p>
+                      </div>
+                    ))}
+                    {(!arena[key]?.documents || arena[key].documents.length === 0) && (
+                      <span className="text-[10px] text-[#C9C2AE] italic">no matches</span>
+                    )}
+                  </div>
+                </div>
 
-        {claim ? (
-          <div className="p-7 flex flex-col gap-5">
-            <div className="flex items-center gap-3">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
-                claim.label === 'entailment' ? 'bg-[#EAF3DE] text-[#3F5B45]' :
-                claim.label === 'contradiction' ? 'bg-[#FAE8E0] text-[#C1652F]' : 'bg-[#F4F0E4] text-[#8C8775]'
-              }`}>
-                {claim.label === 'entailment' ? '✓' : claim.label === 'contradiction' ? '✗' : '—'}
+                {i < arr.length - 1 && (
+                  <div className="flex items-center justify-center px-1.5 sm:px-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9C2AE" strokeWidth="2" className="rotate-90 sm:rotate-0">
+                      <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                )}
               </div>
-              <span className={`dm-mono text-[10px] uppercase tracking-widest font-bold ${
-                claim.label === 'entailment' ? 'text-[#3F5B45]' :
-                claim.label === 'contradiction' ? 'text-[#C1652F]' : 'text-[#8C8775]'
-              }`}>
-                {claim.label === 'entailment' ? 'Supported' :
-                 claim.label === 'contradiction' ? 'Contradicted' : 'Not Found'}
-              </span>
-              <div className="flex-1 h-px bg-[#EFE9D8]" />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <span className="dm-mono text-[9px] uppercase tracking-widest text-[#8C8775]">Supporting passage</span>
-              <div className={`bg-[#FAF6EC] border border-[#E5DFCB] rounded-r-md p-4 ${
-                claim.label === 'entailment' ? 'border-l-2 border-l-[#3F5B45]' :
-                claim.label === 'contradiction' ? 'border-l-2 border-l-[#C1652F]' : 'border-l-2 border-l-[#8C8775]'
-              }`}>
-                <p className="dm-display italic text-sm text-[#5C5848] leading-relaxed">
-                  <Quote size={11} className="inline text-[#C9C2AE] -mt-1 mr-1" />
-                  {claim.documents}
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         ) : (
-          <div className="p-7 flex items-center justify-center opacity-40">
-            <span className="dm-display italic text-sm text-[#8C8775]">Verdict will appear here</span>
+          <div className="py-10 flex flex-col items-center gap-2 opacity-40">
+            <Zap size={18} className="text-[#C9C2AE]" />
+            <span className="text-sm text-[#8C8775] italic">Ask something above to trace the pipeline</span>
           </div>
         )}
       </div>
@@ -541,7 +549,7 @@ return (
         { label: 'Custom-Trained Encoder', icon: Sparkles },
         { label: 'Hybrid Retrieval', icon: Search },
         { label: 'Cross-Encoder Reranking', icon: ScatterChart },
-        { label: 'Claim Verification', icon: Quote },
+        { label: 'Retrieval Pipeline', icon: Zap },
         { label: 'Streaming Responses', icon: MessagesSquare },
       ].map(({ label, icon: Icon }, i) => (
         <div key={i} className="flex items-center gap-2 px-4 py-1.5 bg-[#F2EBD8] rounded-full border border-[#C1652F]/40">

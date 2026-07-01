@@ -1,3 +1,6 @@
+import os
+os.environ['HF_TOKEN']=""
+
 import chromadb
 from input import insert_file
 from visual import visualize
@@ -13,7 +16,6 @@ import json
 from rerank import reranker
 from bm25 import bm
 from dedupe import dupes
-from claim import checkClaim
 from text_splitter import text_splitter
 from fastapi.responses import Response
 
@@ -127,53 +129,89 @@ async def download(mem: Memory):
         media_type="text/plain",
         headers={"Content-Disposition": "attachment; filename=notemind_session.txt"}
     )
-@app.post("/claim")
-async def claims(query: Query):
-    entailment = []
-    neutral = []
-    contradiction = []
+@app.post("/arena")
+async def arena(query: Query):
     txt = query.text
     collection = getCollection(query.sessionid)
-    retrieved = retrieve(txt, collection)
-    bms = bm(retrieved, txt)
+
+    retrieved = retrieve(txt, collection,5)          
+    bms = bm(retrieved, txt)                        
+
     docs, meta = dupes(
         retrieved["documents"][0] + bms["documents"][0],
         retrieved["metadatas"][0] + bms["metadatas"][0]
     )
     merged = {"documents": [docs], "metadatas": [meta]}
-    reranked = reranker(merged, txt)
+    reranked = reranker(merged, txt, top_k=3)        
 
-    splitter = text_splitter()
+    return {
+        "encoder": {
+            "documents": retrieved["documents"][0][:3],
+            "metadatas": retrieved["metadatas"][0][:3]
+        },
+        "bm25": {
+            "documents": bms["documents"][0][:3],
+            "metadatas": bms["metadatas"][0][:3]
+        },
+        "reranked": {
+            "documents": reranked["documents"][0][:3],
+            "metadatas": reranked["metadatas"][0][:3]
+        }
+    }
 
-    chunks = []
-    for doc in reranked["documents"][0]:
-        chunks.extend(splitter.rec_chunk(doc, 100, 50))
 
-    score = checkClaim(chunks, txt)
 
-    for i, s in enumerate(score):
-        label = s[0]["label"]
-        conf = s[0]["score"]
-        if conf <= 0.5:
-            continue
-        if label == "entailment":
-            entailment.append((chunks[i], conf))
-        elif label == "contradiction":
-            contradiction.append((chunks[i], conf))
-        elif label == "neutral":
-            neutral.append((chunks[i], conf))
+# CLAIM VERIFICATION --SCRAPPED
+# @app.post("/claim")
+# async def claims(query: Query):
+#     entailment = []
+#     neutral = []
+#     contradiction = []
+#     txt = query.text
+#     collection = getCollection(query.sessionid)
+#     retrieved = retrieve(txt, collection)
+#     bms = bm(retrieved, txt)
+#     docs, meta = dupes(
+#         retrieved["documents"][0] + bms["documents"][0],
+#         retrieved["metadatas"][0] + bms["metadatas"][0]
+#     )
+#     merged = {"documents": [docs], "metadatas": [meta]}
+#     reranked = reranker(merged, txt)
 
-    if entailment:
-        best = max(entailment, key=lambda x: x[1])
-        return {"label": "entailment", "documents": best[0]}
-    elif contradiction:
-        best = max(contradiction, key=lambda x: x[1])
-        return {"label": "contradiction", "documents": best[0]}
-    elif neutral:
-        best = max(neutral, key=lambda x: x[1])
-        return {"label": "neutral", "documents": best[0]}
+#     splitter = text_splitter()
 
-    return {"label": "neutral", "documents": None}
+#     chunks = []
+#     print("TOP 1 CHUNK")
+#     print(reranked["documents"][0])
+#     print("----EOF TOP 1 CHUNKS")
+#     for doc in reranked["documents"][0]:
+#         chunks.extend(splitter.rec_chunk(doc, 300, 50))
+#     print(chunks)
+#     score = checkClaim(chunks, txt)
+#     print("THESE ARE THE SCORES : ",score)
+#     for i, s in enumerate(score):
+#         label = s["label"]
+#         conf = s["score"]
+#         if conf <= 0.9:
+#             continue
+#         if label == "entailment":
+#             entailment.append((chunks[i], conf))
+#         elif label == "contradiction":
+#             contradiction.append((chunks[i], conf))
+#         elif label == "neutral":
+#             neutral.append((chunks[i], conf))
+
+#     if entailment:
+#         best = max(entailment, key=lambda x: x[1])
+#         return {"label": "entailment", "documents": best[0]}
+#     elif contradiction:
+#         best = max(contradiction, key=lambda x: x[1])
+#         return {"label": "contradiction", "documents": best[0]}
+#     elif neutral:
+#         best = max(neutral, key=lambda x: x[1])
+#         return {"label": "neutral", "documents": None}
+
+#     return {"label": "neutral", "documents": None}
 
     
 
