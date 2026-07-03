@@ -29,8 +29,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 client = chromadb.Client()
+  
+def getCorpus(collection):
+    result = collection.get(include=["documents", "metadatas"])
+    return {
+        "documents": [result["documents"]],
+        "metadatas": [result["metadatas"]]
+    }
 def getCollection(sesh:str):
     return client.get_or_create_collection(name=sesh)
+
 class Query(BaseModel):
     text:str
     sessionid:str
@@ -68,27 +76,25 @@ async def upload_f(file:list[UploadFile]=File(...),sessionid:str=Form(...)):
         insert_file(text,collection,f.filename)
         filenames.append(f.filename)
     return {"status":"success","filename":filenames}
-    
 
+    
 @app.post("/query")
 async def query_res(query: Query):
     txt = query.text
     collection = getCollection(query.sessionid)
     retrieved = retrieve(txt, collection)
-    bms=bm(retrieved,txt)
-
+    print(retrieved)
+    print("\n \n \n")
+    all = getCorpus(collection) 
+    bms=bm(all,txt)
+    print(bms)
     docs,meta=dupes(retrieved["documents"][0]+bms["documents"][0],retrieved["metadatas"][0]+bms["metadatas"][0])
 
     merged={"documents":[docs],
             "metadatas":[meta]}
 
     reranked=reranker(merged,txt)
-    print("RETRIEVED---")
-    print(retrieved)
-    print("RERANKED----")
-    print(reranked)
-    print('BMS---')
-    print(bms)
+    print("\n \n RERANKED:   \n",reranked)
     def event_stream():
         full_response = ""
         for token in getPrompt(txt, reranked, query.memory):
@@ -135,7 +141,8 @@ async def arena(query: Query):
     collection = getCollection(query.sessionid)
 
     retrieved = retrieve(txt, collection,5)          
-    bms = bm(retrieved, txt)                        
+    full_corpus = getCorpus(collection)   
+    bms = bm(full_corpus, txt)                       
 
     docs, meta = dupes(
         retrieved["documents"][0] + bms["documents"][0],

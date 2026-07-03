@@ -33,8 +33,8 @@ class PositionalEncoding(nn.Module): #add positional encoding to x
 
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)) #formula only taking even indices till d_model(2i=even,2i+1=odd)
 
-        pe[:,0::2]=torch.sin(position/div_term)
-        pe[:,1::2]=torch.cos(position/div_term)
+        pe[:,0::2]=torch.sin(position*div_term)
+        pe[:,1::2]=torch.cos(position*div_term)
 
         pe=pe.unsqueeze(0)
         self.register_buffer('pe',pe)
@@ -56,9 +56,11 @@ class Multihead(nn.Module):
         self.wo=nn.Linear(d_model,d_model,bias=False)
         self.dropout=nn.Dropout(dropout)
     @staticmethod
-    def attention(query,key,value,dropout:nn.Dropout):
+    def attention(query,key,value,mask,dropout:nn.Dropout): # ADDED mask param
         dk=query.shape[-1]
         at_score=(query@key.transpose(-2,-1))/math.sqrt(dk) #results in matrix of batch,head,sqln,sqln
+        if mask is not None: # ADDED — block attention to padding positions
+            at_score=at_score.masked_fill(mask==0,-1e9)
         at_score=at_score.softmax(dim=-1)
         if dropout is not None:
             at_score=dropout(at_score)
@@ -66,7 +68,7 @@ class Multihead(nn.Module):
 
 
 
-    def forward(self,q,k,v):
+    def forward(self,q,k,v,mask=None): # ADDED mask param, default None
         query=self.wq(q)
         key=self.wk(k)
         value=self.wv(v)
@@ -76,7 +78,7 @@ class Multihead(nn.Module):
         key=key.view(key.shape[0],key.shape[1],self.h,self.dk).transpose(1,2)
         value=value.view(value.shape[0],value.shape[1],self.h,self.dk).transpose(1,2)
 
-        x,self.attention_scores=Multihead.attention(query,key,value,self.dropout)
+        x,self.attention_scores=Multihead.attention(query,key,value,mask,self.dropout) # ADDED mask
         x=x.transpose(1,2) # so seqlen back to its original position.we skipped before
         x=x.contiguous().view(x.shape[0],x.shape[1],self.h*self.dk)
         return self.wo(x)
@@ -124,8 +126,8 @@ class encoderB(nn.Module):
         self.connector1=connector(drop,d_model)
         self.connector2=connector(drop,d_model)
     
-    def forward(self, x):
-         x = self.connector1(x, lambda x: self.multihead(x, x, x)) #lamda because we defined connector with sublayer  taking only 1 input. we use 
+    def forward(self, x, mask=None): # ADDED mask param, default None
+         x = self.connector1(x, lambda x: self.multihead(x, x, x, mask)) #lamda because we defined connector with sublayer  taking only 1 input. we use 
          #lamda to make it look like we takking 1 but actually using it 3 times 
          x = self.connector2(x, self.ff)
          return x
@@ -135,9 +137,9 @@ class Encoder(nn.Module):
         super().__init__()
         self.layers=layers
         self.norm=Normalization(d_model)
-    def forward(self,x):
+    def forward(self,x,mask=None): # ADDED mask param, default None
         for layer in self.layers:
-            x=layer(x)
+            x=layer(x,mask)
         return self.norm(x)
     
 
@@ -169,6 +171,6 @@ def get_embedding(text):
     with torch.no_grad():
         x = embed_model(tokens["input_ids"])
         x = pe(x)
-        out = encoder(x)
+        out = encoder(x) # unchanged — single input, no padding, mask defaults to None
         embed=out.mean(dim=1).squeeze()
         return (np.array(embed)/np.linalg.norm(np.array(embed))).tolist()

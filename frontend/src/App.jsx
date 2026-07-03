@@ -36,14 +36,22 @@ const [generating,setGenerating]=useState(false)
 
 
 const getFiles = async ()=>{
-  const f = await fetch(`${BASE_URL}/files`,{
-    method:'POST',
-    mode:'cors',
-    body:JSON.stringify({ses:sessionId}),
-    headers:{'Content-Type':'application/json'}
-  })
-  const data= await f.json()
-  setFilenames(data.fileSet)
+  try{
+    const f = await fetch(`${BASE_URL}/files`,{
+      method:'POST',
+      mode:'cors',
+      body:JSON.stringify({ses:sessionId}),
+      headers:{'Content-Type':'application/json'}
+    })
+    if(!f.ok){
+      throw new Error(`${f.status}`)
+    }
+    const data= await f.json()
+    setFilenames(data.fileSet)
+  }
+  catch(err){
+    toast.error("Couldn't load your files. Check your connection and try refreshing.")
+  }
 }
 
 useEffect(() => {
@@ -52,7 +60,7 @@ useEffect(() => {
 
 const uploadFile = async ()=>{
   if(file.length==0){
-    toast.error("Select a file")
+    toast.error("Please select a file to upload first.")
     return
   }
   const formdata=new FormData()
@@ -77,7 +85,7 @@ const uploadFile = async ()=>{
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
   catch(err){
-    toast.error(`error ${err}`)
+    toast.error("Upload failed. Please check your file and try again.")
     return
   }
   finally{
@@ -87,7 +95,14 @@ const uploadFile = async ()=>{
 }
 
 const queryAsk = async ()=>{
+  if(loading){
+    return
+  }
   if(query.trim()){
+    if(filenames.length==0){
+      toast.error('Upload a file first to ask questions.')
+      return
+    }
     const q=query
   try{
     setLoading(true)
@@ -124,7 +139,7 @@ const queryAsk = async ()=>{
       }
     }
     catch(err){
-      toast.error(`${err}`)
+      toast.error("Something went wrong while getting your answer. Please try again.")
       return
     }
     finally{
@@ -139,7 +154,7 @@ const visual=async()=>{
     setLoading(true)
     setGenerating(true)
     if(filenames.length==0){
-      toast.error('No chunks Generated. Upload a file')
+      toast.error('Upload a file first to generate the visualization.')
       return
     }
     const sim= await fetch(`${BASE_URL}/visual`,{
@@ -158,7 +173,7 @@ const visual=async()=>{
     
   }
   catch(error){
-    toast.error(`${error}`)
+    toast.error("Couldn't generate the visualization right now. Please try again.")
   }
   finally{
     setLoading(false)
@@ -181,7 +196,7 @@ const fetchArena = async (q) => {
     setArena(data)
   } catch(err) {
     console.error("ARENA FETCH FAILED:", err)
-    toast.error(`Arena: ${err}`)
+    toast.error("Couldn't load the retrieval comparison. Please try again.")
   } finally {
     setArenaLoading(false)
   }
@@ -211,14 +226,13 @@ const download= async ()=>{
 
 }
   catch(err){
-    toast.error(`${err}`)
+    toast.error("Couldn't download your session. Please try again.")
     return
   } finally{
     setLoading(false)
   }
 
 }
-
 
 return (
 <>
@@ -474,74 +488,108 @@ return (
 
     {/* Retrieval Pipeline — auto-populated from the latest query */}
 <div className="w-full max-w-3xl flex flex-col gap-6">
-      <div className="flex items-center gap-4">
-        <div className="flex-1 h-px bg-[#E5DFCB]" />
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-[#F2EBD8] rounded-full border border-[#E5DFCB]">
-          <Zap size={13} className="text-[#3F5B45]" />
-          <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider">Retrieval Pipeline</span>
-        </div>
-        <div className="flex-1 h-px bg-[#E5DFCB]" />
+  <div className="flex items-center gap-3">
+    <span className="dm-mono text-[9px] font-bold text-[#3F5B45] uppercase tracking-widest shrink-0">
+       Retrieval Pipeline
+    </span>
+    <div className="flex-1 h-px bg-[repeating-linear-gradient(90deg,#D8D0B8_0,#D8D0B8_4px,transparent_4px,transparent_9px)]" />
+    <X size={12} className="text-[#B8862F] shrink-0" />
+  </div>
+
+  <div className="bg-[#FEFCF6] border border-[#E5DFCB] rounded-md p-6 shadow-[0_8px_30px_-12px_rgba(63,91,69,.2)] flex flex-col gap-5">
+
+    {arenaQuery && (
+      <div className="self-start -rotate-1 flex items-center gap-1.5 bg-[#F2EBD8] border border-[#E5DFCB] rounded-sm px-2.5 py-1">
+        <span className="w-1 h-1 rounded-full bg-[#C1652F]" />
+        <span className="dm-mono text-[8px] uppercase tracking-wider text-[#8C8775]">tracing</span>
+        <span className="dm-display italic text-[13px] text-[#3F3A2E] leading-none">{arenaQuery}</span>
       </div>
+    )}
 
-      <div className="bg-white border border-[#E5DFCB] rounded-md p-6 shadow-[0_8px_30px_-12px_rgba(63,91,69,.25)] flex flex-col gap-5">
+    {arenaLoading ? (
+      <div className="flex flex-col sm:flex-row gap-3 items-end">
+        <div className="dm-skeleton h-44 rounded-md flex-1" />
+        <div className="dm-skeleton h-44 rounded-md flex-1" />
+        <div className="dm-skeleton h-52 rounded-md flex-1" style={{animationDelay:'0.1s'}} />
+      </div>
+    ) : arena ? (
+      <div className="dm-fadein flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
 
-        {arenaQuery && (
-          <div className="flex items-center gap-2">
-            <span className="dm-mono text-[9px] uppercase tracking-widest text-[#8C8775]">Tracing</span>
-            <span className="dm-display italic text-sm text-[#5C5848]">"{arenaQuery}"</span>
-          </div>
-        )}
-
-        {arenaLoading ? (
-          <div className="flex flex-col sm:flex-row gap-3">
-            {[0,1,2].map(i => (
-              <div key={i} className="dm-skeleton h-56 rounded-md flex-1" style={{animationDelay: `${i*0.1}s`}} />
-            ))}
-          </div>
-        ) : arena ? (
-          <div className="dm-fadein flex flex-col sm:flex-row items-stretch gap-0">
-            {[
-              { key: 'encoder', label: 'Custom Encoder', sub: 'semantic pass', accent: '#3F5B45', tint: '#EAF3DE' },
-              { key: 'bm25', label: 'BM25 Lexical', sub: 'keyword pass', accent: '#C1652F', tint: '#FAE8E0' },
-              { key: 'reranked', label: 'Combined System', sub: 'cross-encoder reranked', accent: '#B8862F', tint: '#FBF3DD' },
-            ].map(({ key, label, sub, accent, tint }, i, arr) => (
-              <div key={key} className="flex items-stretch flex-1">
-                <div className="flex-1 rounded-md border border-[#E5DFCB] overflow-hidden bg-[#FEFCF6] flex flex-col">
-                  <div className="px-3 py-2 flex flex-col gap-0.5 shrink-0" style={{ backgroundColor: tint, borderBottom: `2px solid ${accent}` }}>
-                    <span className="dm-mono text-[9px] font-bold uppercase tracking-wider" style={{ color: accent }}>{label}</span>
-                    <span className="dm-mono text-[8px] text-[#8C8775] uppercase tracking-wider">{sub}</span>
+        {[
+          { key: 'encoder', label: 'Custom Encoder', sub: 'semantic pass', accent: '#3F5B45', tint: '#EAF3DE' },
+          { key: 'bm25', label: 'BM25 Lexical', sub: 'keyword pass', accent: '#C1652F', tint: '#FAE8E0' },
+        ].map(({ key, label, sub, accent, tint }) => {
+          const docs = arena[key]?.documents ?? []
+          return (
+            <div key={key} className="flex-1 rounded-md border border-[#E5DFCB] bg-white overflow-hidden flex flex-col">
+              <div className="pl-3 pr-2.5 py-2 flex flex-col gap-0.5 border-l-[3px]" style={{ borderColor: accent }}>
+                <span className="dm-mono text-[9px] font-bold uppercase tracking-wider" style={{ color: accent }}>{label}</span>
+                <span className="dm-mono text-[8px] text-[#8C8775] uppercase tracking-wider">{sub}</span>
+              </div>
+              <div className="dm-scroll px-3 py-2.5 flex flex-col gap-2.5 flex-1 max-h-48 overflow-y-auto">
+                {docs.slice(0,3).map((doc, j) => (
+                  <div key={j} className="flex gap-2">
+                    <div className="shrink-0 pt-1.5 flex flex-col items-center gap-0.5">
+                      <span className="h-[3px] rounded-full" style={{ width: `${16 - j*4}px`, backgroundColor: accent, opacity: 0.9 - j*0.15 }} />
+                    </div>
+                    <p className="text-[10.5px] text-[#5C5848] leading-snug">{doc}</p>
                   </div>
-                  <div className="dm-scroll p-2.5 flex flex-col gap-2 flex-1 max-h-56 overflow-y-auto">
-                    {(arena[key]?.documents ?? []).slice(0,3).map((doc, j) => (
-                      <div key={j} className="flex gap-1.5 pb-2 border-b border-[#EFE9D8] last:border-b-0 last:pb-0">
-                        <span className="dm-mono text-[8px] shrink-0 mt-0.5" style={{ color: accent }}>{j+1}</span>
-                        <p className="text-[10.5px] text-[#5C5848] leading-snug">{doc}</p>
-                      </div>
-                    ))}
-                    {(!arena[key]?.documents || arena[key].documents.length === 0) && (
-                      <span className="text-[10px] text-[#C9C2AE] italic">no matches</span>
-                    )}
-                  </div>
-                </div>
-
-                {i < arr.length - 1 && (
-                  <div className="flex items-center justify-center px-1.5 sm:px-2">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9C2AE" strokeWidth="2" className="rotate-90 sm:rotate-0">
-                      <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
+                ))}
+                {docs.length === 0 && (
+                  <span className="text-[10px] text-[#C9C2AE] italic">no matches</span>
                 )}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="py-10 flex flex-col items-center gap-2 opacity-40">
-            <Zap size={18} className="text-[#C9C2AE]" />
-            <span className="text-sm text-[#8C8775] italic">Ask something above to trace the pipeline</span>
-          </div>
-        )}
+            </div>
+          )
+        })}
+
+        {/* merge indicator — only meaningful on wider layouts */}
+        <div className="hidden sm:flex flex-col items-center justify-end pb-8 px-1 shrink-0">
+          <svg width="20" height="28" viewBox="0 0 20 28" fill="none">
+            <path d="M2 2 Q2 14 10 14 Q18 14 18 2" stroke="#C9C2AE" strokeWidth="1.5" fill="none" />
+            <path d="M10 14 L10 22" stroke="#C9C2AE" strokeWidth="1.5" />
+            <path d="M6 19 L10 24 L14 19" stroke="#C9C2AE" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+
+        {/* combined/reranked — visually the output, so it's elevated */}
+        {(() => {
+          const accent = '#B8862F', tint = '#FBF3DD'
+          const docs = arena.reranked?.documents ?? []
+          return (
+            <div className="flex-[1.15] rounded-md border-2 bg-white overflow-hidden flex flex-col shadow-[0_10px_28px_-10px_rgba(184,134,47,.35)] sm:-mt-2" style={{ borderColor: accent }}>
+              <div className="px-3 py-2 flex items-center justify-between" style={{ backgroundColor: tint }}>
+                <div className="flex flex-col gap-0.5">
+                  <span className="dm-mono text-[9px] font-bold uppercase tracking-wider" style={{ color: accent }}>Combined System</span>
+                  <span className="dm-mono text-[8px] text-[#8C8775] uppercase tracking-wider">merged, reranked</span>
+                </div>
+                <span className="dm-mono text-[7px] font-bold uppercase tracking-wider text-white px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: accent }}>final</span>
+              </div>
+              <div className="dm-scroll px-3 py-2.5 flex flex-col gap-2.5 flex-1 max-h-56 overflow-y-auto">
+                {docs.slice(0,3).map((doc, j) => (
+                  <div key={j} className="flex gap-2">
+                    <div className="shrink-0 pt-1.5">
+                      <span className="h-[3px] rounded-full block" style={{ width: `${16 - j*4}px`, backgroundColor: accent, opacity: 0.9 - j*0.15 }} />
+                    </div>
+                    <p className="text-[10.5px] text-[#3F3A2E] leading-snug">{doc}</p>
+                  </div>
+                ))}
+                {docs.length === 0 && (
+                  <span className="text-[10px] text-[#C9C2AE] italic">no matches</span>
+                )}
+              </div>
+            </div>
+          )
+        })()}
       </div>
-    </div>
+    ) : (
+      <div className="py-9 flex flex-col items-center gap-2 border border-dashed border-[#E5DFCB] rounded-md">
+        <Zap size={16} className="text-[#D8D0B8]" />
+        <span className="text-[12px] text-[#8C8775] italic">Ask something above to trace the pipeline</span>
+      </div>
+    )}
+  </div>
+</div>
 
     {/* Capabilities */}
     <div className="w-full max-w-3xl flex flex-wrap items-center justify-center gap-2.5">

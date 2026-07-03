@@ -7,19 +7,24 @@
 #stemmer makes words like run running runs to be roughly the same 
 import bm25s
 import Stemmer
-def bm(chunks,query):
-    res=chunks["documents"][0]
-    print("CHUNKS")
-    print(res)
+
+def bm(chunks, query):
+    res = chunks["documents"][0]
     stem = Stemmer.Stemmer("english")
-    toks=bm25s.tokenize(res,stopwords="en",stemmer=stem)
+
+    # tokenize corpus + query together so they share one vocab
+    all_tokens = bm25s.tokenize(res + [query], stopwords="en", stemmer=stem)
+
+    corpus_tokens = bm25s.tokenization.Tokenized(ids=all_tokens.ids[:-1], vocab=all_tokens.vocab)
+    query_tokens = bm25s.tokenization.Tokenized(ids=[all_tokens.ids[-1]], vocab=all_tokens.vocab)
+
     retriever = bm25s.BM25()
-    retriever.index(toks)
-    qt=bm25s.tokenize([query],stemmer=stem)
-    x = min(5, len(res))
-    results,scores=retriever.retrieve(qt,k=x) # top 5
+    retriever.index(corpus_tokens)
+
+    x = min(10, len(res))
+    results, scores = retriever.retrieve(query_tokens, k=x)
 
     return {
-        'documents':[[chunks['documents'][0][i] for i in results[0]]],
-        'metadatas':[[chunks['metadatas'][0][i] for i in results[0]]]
+        'documents': [[chunks['documents'][0][i] for i in results[0]]],
+        'metadatas': [[chunks['metadatas'][0][i] for i in results[0]]]
     }
