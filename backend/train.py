@@ -1,14 +1,15 @@
+from datasets import load_dataset
+from sentence_transformers import SentenceTransformer
 import torch
 from encoder import encoder, embed_model, pe, tokenizer,get_embedding
 import numpy as np
 print("before import")
-from datasets import load_dataset
+
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
-from sentence_transformers import SentenceTransformer
 
-model=SentenceTransformer("all-MiniLM-L6-v2")
-#ORIGIAL TRAINING EASY NEGS
+
+# model=SentenceTransformer("all-MiniLM-L6-v2")
 
 print("before switchig")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -31,10 +32,18 @@ optimizer = torch.optim.AdamW(
 def get_embeddings_batch(texts):
     tokens = tokenizer(texts, return_tensors="pt", truncation=True, max_length=512, padding=True)
     tokens = {k: v.to(device) for k, v in tokens.items()}
+    attn_mask = tokens["attention_mask"]                    # (batch, seq_len)
+
     x = embed_model(tokens["input_ids"])
     x = pe(x)
-    out = encoder(x)
-    return out.mean(dim=1)
+
+    encoder_mask = attn_mask[:, None, None, :]               # (batch, 1, 1, seq_len) for broadcasting
+    out = encoder(x, encoder_mask)
+
+    mask_expanded = attn_mask.unsqueeze(-1).float()           # (batch, seq_len, 1)
+    summed = (out * mask_expanded).sum(dim=1)
+    counts = mask_expanded.sum(dim=1).clamp(min=1e-9)
+    return summed / counts                                    # masked mean, not plain mean
 
 def train_step(queries, positives):
     optimizer.zero_grad()
@@ -69,12 +78,12 @@ for epoch in range(5):
 torch.save({
     'encoder': encoder.state_dict(),
     'embed_model': embed_model.state_dict(),
-}, 'encoder_trained.pt')
+}, 'encoder_trainedv2.pt')
 
 # p1=get_embedding("what causes earthquakes")
 # x1=model.encode("what causes earthquakes")
-# x2=model.encode("Earthquakes are caused by the sudden release of energy in the Earth's crust, often due to movement along fault lines where tectonic plates meet.")
-# p2=get_embedding("Earthquakes are caused by the sudden release of energy in the Earth's crust, often due to movement along fault lines where tectonic plates meet.")
+# x2=model.encode("earthquakes are caused by tectonic plate movements")
+# p2=get_embedding("earthquakes are caused by tectonic plate movements")
 # r=np.dot(p1,p2)
 # p=np.dot(x1,x2)
 # print(f"my model {r}. Sentence transformers : {p}")

@@ -241,7 +241,7 @@ return (
     .dm-root { font-family:'Lora',serif; }
     .dm-display { font-family:'Libre Caslon Text',serif; }
     .dm-mono { font-family:'Space Mono',monospace; }
-    .dm-paper { background:#FAF6EC repeating-linear-gradient(transparent 0 31px, rgba(63,91,69,.05) 31px 32px); }
+    .dm-paper { background:#FAF6EC repeating-linear-gradient(transparent 0 31px, rgba(63,91,69,.12) 31px 32px); }
     .dm-scroll::-webkit-scrollbar{width:6px}
     .dm-scroll::-webkit-scrollbar-thumb{background:rgba(63,91,69,.25);border-radius:99px}
     .dm-mark {
