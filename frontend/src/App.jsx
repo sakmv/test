@@ -50,7 +50,7 @@ const getFiles = async ()=>{
     setFilenames(data.fileSet)
   }
   catch(err){
-    toast.error("Couldn't load your files. Check your connection and try refreshing.")
+      console.error("Failed to load files:", err)
   }
 }
 
@@ -234,6 +234,25 @@ const download= async ()=>{
 
 }
 
+const deleteFile = async (filename) => {
+  try {
+    const res = await fetch(`${BASE_URL}/delete`, {
+      method: 'DELETE',
+      mode: 'cors',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ses: sessionId, file: filename})
+    })
+    if(!res.ok){
+      throw new Error(`${res.status}`)
+    }
+    setFilenames(prev => prev.filter(name => name !== filename))
+    toast.success(`Deleted ${filename}`)
+  }
+  catch(err){
+    toast.error("Couldn't delete the file. Please try again.")
+  }
+}
+
 return (
 <>
   <style>{`
@@ -279,7 +298,9 @@ return (
   `}</style>
 
   <div className="dm-root dm-paper min-h-screen w-full text-[#2B2A25] flex flex-col items-center px-6 py-16 gap-10">
-    <Toaster />
+    <Toaster toastOptions={{
+  style: { maxWidth: '400px', wordBreak: 'break-word' }
+}} />
 
     {/* Page header strip */}
     <div className="w-full max-w-3xl mt-4 border border-[#D8D2BD] rounded-sm px-4 py-2 flex items-center gap-3">
@@ -321,26 +342,29 @@ return (
       </div>
 
       {file.length > 0 && (
-        <div className="flex flex-col gap-1.5 pl-[4.5rem]">
-          <span className="dm-mono text-[9px] uppercase tracking-wider text-[#C1652F]">Selected</span>
-          <div className="flex flex-wrap gap-2">
-            {file.map((f, idx) => (
-              <span key={idx} className="dm-mono text-xs bg-[#EFE4D4] text-[#8A4A1F] px-3 py-1 rounded-md border border-[#C1652F]/30">{f.name}</span>
-            ))}
-          </div>
-        </div>
-      )}
+  <div className="flex flex-col gap-1.5 pl-[4.5rem]">
+    <span className="dm-mono text-[9px] uppercase tracking-wider text-[#C1652F]">Selected</span>
+    <div className="flex flex-wrap gap-2">
+      {file.map((f, idx) => (
+        <span key={idx} className="dm-mono text-xs bg-[#EFE4D4] text-[#8A4A1F] px-3 py-1 rounded-md border border-[#C1652F]/30 max-w-[200px] truncate inline-block">{f.name}</span>
+      ))}
+    </div>
+  </div>
+)}
 
       {filenames.length > 0 && (
-        <div className="flex flex-col gap-1.5 pl-[4.5rem]">
-          <span className="dm-mono text-[9px] uppercase tracking-wider text-[#3F5B45]">Uploaded</span>
-          <div className="flex flex-wrap gap-2">
-            {filenames.map((name, idx) => (
-              <span key={idx} className="dm-mono text-xs bg-[#F4F0E4] px-3 py-1 rounded-md border border-[#E5DFCB]">{name}</span>
-            ))}
-          </div>
-        </div>
-      )}
+  <div className="flex flex-col gap-1.5 pl-[4.5rem]">
+    <span className="dm-mono text-[9px] uppercase tracking-wider text-[#3F5B45]">Uploaded</span>
+    <div className="flex flex-wrap gap-2">
+      {filenames.map((name, idx) => (
+        <span key={idx} className="dm-mono text-xs bg-[#F4F0E4] px-3 py-1 rounded-md border border-[#E5DFCB] flex items-center gap-1.5 max-w-[200px]">
+          <span className="truncate">{name}</span>
+          <X size={12} className="cursor-pointer text-[#8C8775] hover:text-[#C1652F] shrink-0" onClick={() => deleteFile(name)} />
+        </span>
+      ))}
+    </div>
+  </div>
+)}
 
       {uploadLoad && (
         <div className="pl-[4.5rem] overflow-hidden">
@@ -388,18 +412,18 @@ return (
 
       <div className="dm-scroll flex flex-col gap-4 max-h-[34rem] overflow-y-auto pr-1">
         {responseList.map((res, index) => (
-          <div key={res.id ?? index} className="bg-white border border-[#E5DFCB] rounded-md p-5 flex flex-col gap-3 shadow-[0_6px_20px_-14px_rgba(63,91,69,.3)]">
-            <div className="flex items-start gap-2">
-              <span className="dm-display text-[#C9C2AE] text-lg leading-none select-none">{String(index + 1).padStart(2, '0')}</span>
-              <p className="text-sm font-semibold leading-relaxed pt-0.5">{res.query}</p>
-            </div>
-            <p className="text-sm text-[#4A4738] leading-relaxed pl-7">{res.response}</p>
-            <p className="dm-display italic text-[14px] text-[#3a2f1c] leading-relaxed pl-7">
-              <Quote size={11} className="inline text-[#d7b65d] -mt-1 mr-1" />
-              <span className="dm-mark">{res.source}</span>
-            </p>
-          </div>
-        ))}
+  <div key={res.id ?? index} className="bg-white border border-[#E5DFCB] rounded-md p-5 flex flex-col gap-3 shadow-[0_6px_20px_-14px_rgba(63,91,69,.3)]">
+    <div className="flex items-start gap-2 min-w-0">
+      <span className="dm-display text-[#C9C2AE] text-lg leading-none select-none shrink-0">{String(index + 1).padStart(2, '0')}</span>
+      <p className="text-sm font-semibold leading-relaxed pt-0.5 break-words min-w-0">{res.query}</p>
+    </div>
+    <p className="text-sm text-[#4A4738] leading-relaxed pl-7 break-words">{res.response}</p>
+    <p className="dm-display italic text-[14px] text-[#3a2f1c] leading-relaxed pl-7 break-words">
+      <Quote size={11} className="inline text-[#d7b65d] -mt-1 mr-1" />
+      <span className="dm-mark">{res.source}</span>
+    </p>
+  </div>
+))}
 
         {responseList.length === 0 && (
           <div className="bg-white border border-dashed border-[#D8D2BD] rounded-md py-12 flex flex-col items-center gap-2">
@@ -498,13 +522,13 @@ return (
 
   <div className="bg-[#FEFCF6] border border-[#E5DFCB] rounded-md p-6 shadow-[0_8px_30px_-12px_rgba(63,91,69,.2)] flex flex-col gap-5">
 
-    {arenaQuery && (
-      <div className="self-start -rotate-1 flex items-center gap-1.5 bg-[#F2EBD8] border border-[#E5DFCB] rounded-sm px-2.5 py-1">
-        <span className="w-1 h-1 rounded-full bg-[#C1652F]" />
-        <span className="dm-mono text-[8px] uppercase tracking-wider text-[#8C8775]">tracing</span>
-        <span className="dm-display italic text-[13px] text-[#3F3A2E] leading-none">{arenaQuery}</span>
-      </div>
-    )}
+   {arenaQuery && (
+  <div className="self-start -rotate-1 flex items-center gap-1.5 bg-[#F2EBD8] border border-[#E5DFCB] rounded-sm px-2.5 py-1 max-w-full">
+    <span className="w-1 h-1 rounded-full bg-[#C1652F] shrink-0" />
+    <span className="dm-mono text-[8px] uppercase tracking-wider text-[#8C8775] shrink-0">tracing</span>
+    <span className="dm-display italic text-[13px] text-[#3F3A2E] leading-none truncate">{arenaQuery}</span>
+  </div>
+)}
 
     {arenaLoading ? (
       <div className="flex flex-col sm:flex-row gap-3 items-end">
@@ -600,8 +624,8 @@ return (
         { label: 'Retrieval Pipeline', icon: Zap },
         { label: 'Streaming Responses', icon: MessagesSquare },
       ].map(({ label, icon: Icon }, i) => (
-        <div key={i} className="flex items-center gap-2 px-4 py-1.5 bg-[#F2EBD8] rounded-full border border-[#C1652F]/40">
-          <Icon size={13} className="text-[#C1652F]" />
+        <div key={i} className="flex items-center gap-2 px-4 py-1.5 bg-[#F2EBD8] rounded-full border border-[#C1652F]/40 transition-all duration-200 hover:bg-[#EFE4D4] hover:border-[#C1652F] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-4px_rgba(193,101,47,.4)] cursor-default">
+          <Icon size={13} className="text-[#C1652F] transition-transform duration-200 group-hover:scale-110" />
           <span className="dm-mono text-[10px] font-bold text-[#3F5B45] uppercase tracking-wider">{label}</span>
         </div>
       ))}
