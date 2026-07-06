@@ -159,8 +159,8 @@ embed_model = InputEmbeddings(d_model=D_MODEL, vocab=tokenizer.vocab_size)
 pe = PositionalEncoding(seq_len=512, d_model=D_MODEL, dropout=0.1)
 
 import os
-if os.path.exists("encoder_trained.pt"):
-    checkpoint = torch.load("encoder_trainedV2.pt", map_location="cpu")
+if os.path.exists("encoder_trainedv2.pt"):
+    checkpoint = torch.load("encoder_trainedv2.pt", map_location="cpu")
     encoder.load_state_dict(checkpoint['encoder'])
     embed_model.load_state_dict(checkpoint['embed_model'])
 encoder.eval()

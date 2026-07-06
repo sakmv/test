@@ -7,86 +7,89 @@ print("before import")
 
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
+model=SentenceTransformer("all-MiniLM-L6-v2")
+
+# print("before switchig")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# encoder.to(device)
+# embed_model.to(device)
+# pe.to(device)
+# print(device)
+# def infonce_loss(query_emb, pos_emb, temperature=0.07):
+#     query_emb = F.normalize(query_emb, dim=-1)
+#     pos_emb = F.normalize(pos_emb, dim=-1)
+#     logits = query_emb @ pos_emb.T / temperature
+#     labels = torch.arange(logits.shape[0]).to(device)
+#     return F.cross_entropy(logits, labels)
+
+# optimizer = torch.optim.AdamW(
+#     list(encoder.parameters()) + list(embed_model.parameters()),
+#     lr=2e-4
+# )
+
+# def get_embeddings_batch(texts):
+#     tokens = tokenizer(texts, return_tensors="pt", truncation=True, max_length=512, padding=True)
+#     tokens = {k: v.to(device) for k, v in tokens.items()}
+#     attn_mask = tokens["attention_mask"]                    # (batch, seq_len)
+
+#     x = embed_model(tokens["input_ids"])
+#     x = pe(x)
+
+#     encoder_mask = attn_mask[:, None, None, :]               # (batch, 1, 1, seq_len) for broadcasting
+#     out = encoder(x, encoder_mask)
+
+#     mask_expanded = attn_mask.unsqueeze(-1).float()           # (batch, seq_len, 1)
+#     summed = (out * mask_expanded).sum(dim=1)
+#     counts = mask_expanded.sum(dim=1).clamp(min=1e-9)
+#     return summed / counts                                    # masked mean, not plain mean
+
+# def train_step(queries, positives):
+#     optimizer.zero_grad()
+#     q_embs = get_embeddings_batch(list(queries))
+#     p_embs = get_embeddings_batch(list(positives))
+#     loss = infonce_loss(q_embs, p_embs)
+#     loss.backward()
+#     optimizer.step()
+#     return loss.item()
+# print("before loading")
+# ds = load_dataset("microsoft/ms_marco", "v2.1", split="train[:500000]")
+# print("after loading")
+# pairs = []
+# for row in ds:
+#     query = row["query"]
+#     for passage, is_selected in zip(row["passages"]["passage_text"], row["passages"]["is_selected"]):
+#         if is_selected:
+#             pairs.append((query, passage))
+#             break
+# print("all fntions")
+# loader = DataLoader(pairs, batch_size=16, shuffle=True)
+# encoder.train()
+# embed_model.train()
+# print("training begins")
+# for epoch in range(5):
+#     total_loss = 0
+#     for queries, positives in loader:
+#         loss = train_step(list(queries), list(positives))
+#         total_loss += loss
+#     print(f"Epoch {epoch+1} loss: {total_loss/len(loader):.4f}")
+
+# torch.save({
+#     'encoder': encoder.state_dict(),
+#     'embed_model': embed_model.state_dict(),
+# }, 'encoder_trainedv2.pt')
+
+p1=get_embedding("Large rockets require immense thrust to escape Earth's gravity.")
+x1=model.encode("Large rockets require immense thrust to escape Earth's gravity.")
+x2=model.encode("Nanorockets are too small to be affected by gravity, and instead face viscous drag.")
+p2=get_embedding("Nanorockets are too small to be affected by gravity, and instead face viscous drag.")
+r=np.dot(p1,p2)
+p=np.dot(x1,x2)
+print(f"my model {r}. Sentence transformers : {p}")
 
 
-# model=SentenceTransformer("all-MiniLM-L6-v2")
 
-print("before switchig")
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-encoder.to(device)
-embed_model.to(device)
-pe.to(device)
-print(device)
-def infonce_loss(query_emb, pos_emb, temperature=0.07):
-    query_emb = F.normalize(query_emb, dim=-1)
-    pos_emb = F.normalize(pos_emb, dim=-1)
-    logits = query_emb @ pos_emb.T / temperature
-    labels = torch.arange(logits.shape[0]).to(device)
-    return F.cross_entropy(logits, labels)
 
-optimizer = torch.optim.AdamW(
-    list(encoder.parameters()) + list(embed_model.parameters()),
-    lr=2e-4
-)
 
-def get_embeddings_batch(texts):
-    tokens = tokenizer(texts, return_tensors="pt", truncation=True, max_length=512, padding=True)
-    tokens = {k: v.to(device) for k, v in tokens.items()}
-    attn_mask = tokens["attention_mask"]                    # (batch, seq_len)
-
-    x = embed_model(tokens["input_ids"])
-    x = pe(x)
-
-    encoder_mask = attn_mask[:, None, None, :]               # (batch, 1, 1, seq_len) for broadcasting
-    out = encoder(x, encoder_mask)
-
-    mask_expanded = attn_mask.unsqueeze(-1).float()           # (batch, seq_len, 1)
-    summed = (out * mask_expanded).sum(dim=1)
-    counts = mask_expanded.sum(dim=1).clamp(min=1e-9)
-    return summed / counts                                    # masked mean, not plain mean
-
-def train_step(queries, positives):
-    optimizer.zero_grad()
-    q_embs = get_embeddings_batch(list(queries))
-    p_embs = get_embeddings_batch(list(positives))
-    loss = infonce_loss(q_embs, p_embs)
-    loss.backward()
-    optimizer.step()
-    return loss.item()
-print("before loading")
-ds = load_dataset("microsoft/ms_marco", "v2.1", split="train[:500000]")
-print("after loading")
-pairs = []
-for row in ds:
-    query = row["query"]
-    for passage, is_selected in zip(row["passages"]["passage_text"], row["passages"]["is_selected"]):
-        if is_selected:
-            pairs.append((query, passage))
-            break
-print("all fntions")
-loader = DataLoader(pairs, batch_size=16, shuffle=True)
-encoder.train()
-embed_model.train()
-print("training begins")
-for epoch in range(5):
-    total_loss = 0
-    for queries, positives in loader:
-        loss = train_step(list(queries), list(positives))
-        total_loss += loss
-    print(f"Epoch {epoch+1} loss: {total_loss/len(loader):.4f}")
-
-torch.save({
-    'encoder': encoder.state_dict(),
-    'embed_model': embed_model.state_dict(),
-}, 'encoder_trainedv2.pt')
-
-# p1=get_embedding("what causes earthquakes")
-# x1=model.encode("what causes earthquakes")
-# x2=model.encode("earthquakes are caused by tectonic plate movements")
-# p2=get_embedding("earthquakes are caused by tectonic plate movements")
-# r=np.dot(p1,p2)
-# p=np.dot(x1,x2)
-# print(f"my model {r}. Sentence transformers : {p}")
 
 
 

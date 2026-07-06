@@ -39,6 +39,10 @@ def getCorpus(collection):
 def getCollection(sesh:str):
     return client.get_or_create_collection(name=sesh)
 
+class Delete(BaseModel):
+    ses:str
+    file:str
+
 class Query(BaseModel):
     text:str
     sessionid:str
@@ -165,6 +169,15 @@ async def arena(query: Query):
             "metadatas": reranked["metadatas"][0][:3]
         }
     }
+
+@app.delete("/delete")
+async def dele(sesh:Delete):
+    collection=getCollection(sesh.ses)
+    collection.delete(
+	where={"source": f"{sesh.file}"}
+)
+    return {"status":"deleted","file":sesh.file}
+
 
 
 
